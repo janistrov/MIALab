@@ -49,6 +49,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     putil.load_atlas_images(data_atlas_dir)
 
     print('-' * 5, 'Training...')
+    print('-' * 5, 'Training...')
 
     # crawl the training image directories
     crawler = load.FileSystemDataCrawler(data_train_dir,
@@ -83,6 +84,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     result_dir = os.path.join(result_dir, t)
     os.makedirs(result_dir, exist_ok=True)
 
+    print('-' * 5, 'Testing...')
     print('-' * 5, 'Testing...')
 
     # initialize evaluator
