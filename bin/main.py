@@ -5,6 +5,7 @@ The pipeline is used for brain tissue segmentation using a decision forest class
 import argparse
 import datetime
 import os
+import random
 import sys
 import timeit
 import warnings
@@ -44,11 +45,13 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
         - Post-processing of the segmentation
         - Evaluation of the segmentation
     """
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
 
     # load atlas images
     putil.load_atlas_images(data_atlas_dir)
 
-    print('-' * 5, 'Training...')
     print('-' * 5, 'Training...')
 
     # crawl the training image directories
@@ -70,10 +73,12 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     data_train = np.concatenate([img.feature_matrix[0] for img in images])
     labels_train = np.concatenate([img.feature_matrix[1] for img in images]).squeeze()
 
-    warnings.warn('Random forest parameters not properly set.')
+    # warnings.warn('Random forest parameters not properly set.')
+    # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
+    # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=1,
-                                                max_depth=5)
+                                                n_estimators=20,
+                                                max_depth=25)
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)
@@ -84,8 +89,6 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     result_dir = os.path.join(result_dir, t)
     os.makedirs(result_dir, exist_ok=True)
 
-    print('-' * 5, 'Testing...')
-    print('-' * 5, 'Testing...')
     print('-' * 5, 'Testing...')
 
     # initialize evaluator
