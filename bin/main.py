@@ -86,6 +86,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     print('-' * 5, 'Testing...')
     print('-' * 5, 'Testing...')
+    print('-' * 5, 'Testing...')
 
     # initialize evaluator
     evaluator = putil.init_evaluator(result_dir)
