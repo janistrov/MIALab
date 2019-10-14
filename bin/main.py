@@ -60,7 +60,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': False,
+                          'normalization_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
