@@ -239,6 +239,8 @@ bin/toy-example-result/
 bin/mia-model/
 bin/mia-result/
 data/
+data_unused/
+literature/
 *.nii.gz
 *.mha
 exercise/randomforest_plots/
