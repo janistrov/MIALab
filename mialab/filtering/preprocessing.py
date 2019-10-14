@@ -6,6 +6,7 @@ import warnings
 
 import pymia.filtering.filter as pymia_fltr
 import SimpleITK as sitk
+import os
 
 
 class ImageNormalization(pymia_fltr.IFilter):
@@ -15,7 +16,7 @@ class ImageNormalization(pymia_fltr.IFilter):
         """Initializes a new instance of the ImageNormalization class."""
         super().__init__()
 
-    def execute(self, image: sitk.Image, params: pymia_fltr.IFilterParams = None) -> sitk.Image:
+    def execute(self, image: sitk.Image, params: pymia_fltr.IFilterParams = None, i=[0]) -> sitk.Image:
         """Executes a normalization on an image.
 
         Args:
@@ -26,10 +27,11 @@ class ImageNormalization(pymia_fltr.IFilter):
             sitk.Image: The normalized image.
         """
 
+        saveto = os.path.join('./mia-result/norm images/', 'img_norm_' + str(i[0]) + '.nii.gz')
+
         img_arr = sitk.GetArrayFromImage(image)
 
-        # todo: normalize the image using numpy
-        # warnings.warn('No normalization implemented. Returning unprocessed image.')
+        # todo: try different normalization algorithms ------------------------------------------------------
 
         mean = img_arr.mean()
         std = img_arr.std()
@@ -37,6 +39,10 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         img_out = sitk.GetImageFromArray(img_arr)
         img_out.CopyInformation(image)
+
+        # saves norm images to /bin for visual inspection
+        sitk.WriteImage(img_out, saveto)
+        i[0] += 1
 
         return img_out
 
