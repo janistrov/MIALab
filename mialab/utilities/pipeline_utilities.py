@@ -160,7 +160,7 @@ class FeatureExtractor:
         return image.reshape((no_voxels, number_of_components))
 
 
-def pre_process(id_: str, paths: dict, **kwargs) -> structure.BrainImage:
+def pre_process(id_: str, paths: dict, norm_method: str='z_score', **kwargs) -> structure.BrainImage:
     """Loads and processes an image.
 
     The processing includes:
@@ -173,6 +173,7 @@ def pre_process(id_: str, paths: dict, **kwargs) -> structure.BrainImage:
         id_ (str): An image identifier.
         paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
             and the values are paths to the images.
+        norm_method (str): Type of normalization to execute
 
     Returns:
         (structure.BrainImage):
@@ -210,7 +211,7 @@ def pre_process(id_: str, paths: dict, **kwargs) -> structure.BrainImage:
         pipeline_t1.set_param(fltr_prep.SkullStrippingParameters(img.images[structure.BrainImageTypes.BrainMask]),
                               len(pipeline_t1.filters) - 1)
     if kwargs.get('normalization_pre', False):
-        pipeline_t1.add_filter(fltr_prep.ImageNormalization())
+        pipeline_t1.add_filter(fltr_prep.ImageNormalization(norm_method))
 
     # execute pipeline on the T1w image
     img.images[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img.images[structure.BrainImageTypes.T1w])
@@ -226,7 +227,7 @@ def pre_process(id_: str, paths: dict, **kwargs) -> structure.BrainImage:
         pipeline_t2.set_param(fltr_prep.SkullStrippingParameters(img.images[structure.BrainImageTypes.BrainMask]),
                               len(pipeline_t2.filters) - 1)
     if kwargs.get('normalization_pre', False):
-        pipeline_t2.add_filter(fltr_prep.ImageNormalization())
+        pipeline_t2.add_filter(fltr_prep.ImageNormalization(norm_method))
 
     # execute pipeline on the T2w image
     img.images[structure.BrainImageTypes.T2w] = pipeline_t2.execute(img.images[structure.BrainImageTypes.T2w])
@@ -309,7 +310,7 @@ def init_evaluator(directory: str, result_file_name: str = 'results.csv') -> eva
 
 
 def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.BrainImage],
-                      pre_process_params: dict=None, multi_process=True) -> t.List[structure.BrainImage]:
+                      pre_process_params: dict=None, norm_method: str='z_score', multi_process=True) -> t.List[structure.BrainImage]:
     """Loads and pre-processes a batch of images.
 
     The pre-processing includes:
@@ -322,6 +323,7 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
         data_batch (Dict[structure.BrainImageTypes, structure.BrainImage]): Batch of images to be processed.
         pre_process_params (dict): Pre-processing parameters.
         multi_process (bool): Whether to use the parallel processing on multiple cores or to run sequentially.
+        norm_method (str): Type of normalization to execute
 
     Returns:
         List[structure.BrainImage]: A list of images.
@@ -333,7 +335,7 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
     if multi_process:
         images = mproc.MultiProcessor.run(pre_process, params_list, pre_process_params, mproc.PreProcessingPickleHelper)
     else:
-        images = [pre_process(id_, path, **pre_process_params) for id_, path in params_list]
+        images = [pre_process(id_, path, norm_method=norm_method, **pre_process_params) for id_, path in params_list]
     return images
 
 

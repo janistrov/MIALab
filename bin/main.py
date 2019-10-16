@@ -66,8 +66,18 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
 
+    # STUDENT: choose normalization procedure
+    norm_method = 'z_score'  # 'z_score' by default
+
     # load images for training and pre-process
-    images = putil.pre_process_batch(crawler.data, pre_process_params, multi_process=False)
+    images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,  multi_process=False)
+
+    # STUDENT: save preprocessed images for visual inspection
+    for i, img in enumerate(images):
+        save_to_t1w = os.path.join('./mia-result/norm images/', 'no-norm_' + images[i].id_ + '_T1w.nii.gz')
+        save_to_t2w = os.path.join('./mia-result/norm images/', 'no-norm_' + images[i].id_ + '_T2w.nii.gz')
+        sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t1w)
+        sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t2w)
 
     # generate feature matrix and label vector
     data_train = np.concatenate([img.feature_matrix[0] for img in images])

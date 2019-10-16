@@ -12,11 +12,12 @@ import os
 class ImageNormalization(pymia_fltr.IFilter):
     """Represents a normalization filter."""
 
-    def __init__(self):
+    def __init__(self, norm_method='z_score'):
         """Initializes a new instance of the ImageNormalization class."""
         super().__init__()
+        self.norm_method = norm_method
 
-    def execute(self, image: sitk.Image, params: pymia_fltr.IFilterParams = None, i=[0]) -> sitk.Image:
+    def execute(self, image: sitk.Image, params: pymia_fltr.IFilterParams = None) -> sitk.Image:
         """Executes a normalization on an image.
 
         Args:
@@ -27,22 +28,28 @@ class ImageNormalization(pymia_fltr.IFilter):
             sitk.Image: The normalized image.
         """
 
-        saveto = os.path.join('./mia-result/norm images/', 'img_norm_' + str(i[0]) + '.nii.gz')
-
         img_arr = sitk.GetArrayFromImage(image)
 
-        # todo: try different normalization algorithms ------------------------------------------------------
+        if self.norm_method == 'z_score':
+            print('Normalization method: z-score')
 
+        elif self.norm_method == 'white_stripe':
+            print('Normalization method: white stripe')
+
+        elif self.norm_method is None:
+            print('Normalization method: None')
+
+        else:
+            print('Normalization method not known. Please choose another method.')
+
+        # STUDENT: implementation of normalization
         mean = img_arr.mean()
         std = img_arr.std()
         img_arr = (img_arr - mean) / std
 
+        # conversion to simpleITK image
         img_out = sitk.GetImageFromArray(img_arr)
         img_out.CopyInformation(image)
-
-        # saves norm images to /bin for visual inspection
-        sitk.WriteImage(img_out, saveto)
-        i[0] += 1
 
         return img_out
 
