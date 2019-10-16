@@ -160,7 +160,7 @@ class FeatureExtractor:
         return image.reshape((no_voxels, number_of_components))
 
 
-def pre_process(id_: str, paths: dict, norm_method: str='z_score', **kwargs) -> structure.BrainImage:
+def pre_process(id_: str, paths: dict, norm_method: str='z', **kwargs) -> structure.BrainImage:
     """Loads and processes an image.
 
     The processing includes:
@@ -310,7 +310,7 @@ def init_evaluator(directory: str, result_file_name: str = 'results.csv') -> eva
 
 
 def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.BrainImage],
-                      pre_process_params: dict=None, norm_method: str='z_score', multi_process=True) -> t.List[structure.BrainImage]:
+                      pre_process_params: dict=None, norm_method: str='z', multi_process=True) -> t.List[structure.BrainImage]:
     """Loads and pre-processes a batch of images.
 
     The pre-processing includes:

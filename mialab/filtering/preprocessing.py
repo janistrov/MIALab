@@ -12,7 +12,7 @@ import os
 class ImageNormalization(pymia_fltr.IFilter):
     """Represents a normalization filter."""
 
-    def __init__(self, norm_method='z_score'):
+    def __init__(self, norm_method='z'):
         """Initializes a new instance of the ImageNormalization class."""
         super().__init__()
         self.norm_method = norm_method
@@ -30,22 +30,20 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         img_arr = sitk.GetArrayFromImage(image)
 
-        if self.norm_method == 'z_score':
-            print('Normalization method: z-score')
+        # STUDENT: implementation of normalization
 
-        elif self.norm_method == 'white_stripe':
-            print('Normalization method: white stripe')
+        if self.norm_method == 'z':
+            print('Normalization method: Z-Score')
+            mean = img_arr.mean()
+            std = img_arr.std()
+            img_arr = (img_arr - mean) / std
 
-        elif self.norm_method is None:
-            print('Normalization method: None')
+        elif self.norm_method == 'ws':
+            # todo
+            print('Normalization method: White Stripe')
 
         else:
-            print('Normalization method not known. Please choose another method.')
-
-        # STUDENT: implementation of normalization
-        mean = img_arr.mean()
-        std = img_arr.std()
-        img_arr = (img_arr - mean) / std
+            print('Normalization method not known. Pre processing runs without normalization.')
 
         # conversion to simpleITK image
         img_out = sitk.GetImageFromArray(img_arr)

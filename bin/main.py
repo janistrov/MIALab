@@ -67,7 +67,9 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                           'gradient_intensity_feature': True}
 
     # STUDENT: choose normalization procedure
-    norm_method = 'z_score'  # 'z_score' by default
+    #  'z':     Z-Score
+    #  'ws':    White Stripe
+    norm_method = 'ws'
 
     # load images for training and pre-process
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,  multi_process=False)
