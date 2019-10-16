@@ -173,7 +173,7 @@ def pre_process(id_: str, paths: dict, norm_method: str='z_score', **kwargs) -> 
         id_ (str): An image identifier.
         paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
             and the values are paths to the images.
-        norm_method (str): Type of normalization to execute
+        norm_method (str): Normalization method
 
     Returns:
         (structure.BrainImage):
@@ -323,7 +323,7 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
         data_batch (Dict[structure.BrainImageTypes, structure.BrainImage]): Batch of images to be processed.
         pre_process_params (dict): Pre-processing parameters.
         multi_process (bool): Whether to use the parallel processing on multiple cores or to run sequentially.
-        norm_method (str): Type of normalization to execute
+        norm_method (str): Normalization method
 
     Returns:
         List[structure.BrainImage]: A list of images.
