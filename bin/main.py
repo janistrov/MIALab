@@ -60,7 +60,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': True,
+                          'normalization_pre': False,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
@@ -69,15 +69,21 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
-    norm_method = 'ws'
+    norm_method = 'z'
+
+    if not pre_process_params['normalization_pre']:
+        norm_method = 'no'
 
     # load images for training and pre-process
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,  multi_process=False)
 
+    # STUDENT: plot a slice of a sample image for visual inspection
+    putil.plot_slice(images[0].images[structure.BrainImageTypes.T1w])
+
     # STUDENT: save preprocessed images for visual inspection
     for i, img in enumerate(images):
-        save_to_t1w = os.path.join('./mia-result/norm images/', 'no-norm_' + images[i].id_ + '_T1w.nii.gz')
-        save_to_t2w = os.path.join('./mia-result/norm images/', 'no-norm_' + images[i].id_ + '_T2w.nii.gz')
+        save_to_t1w = os.path.join('./mia-result/norm images/', norm_method + '-norm_' + images[i].id_ + '_T1w.nii.gz')
+        save_to_t2w = os.path.join('./mia-result/norm images/', norm_method + '-norm_' + images[i].id_ + '_T2w.nii.gz')
         sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t1w)
         sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t2w)
 
@@ -114,7 +120,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # load images for testing and pre-process
     pre_process_params['training'] = False
-    images_test = putil.pre_process_batch(crawler.data, pre_process_params, multi_process=False)
+    images_test = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method, multi_process=False)
 
     images_prediction = []
     images_probabilities = []

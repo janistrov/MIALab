@@ -69,21 +69,21 @@ def metric_to_readable_text(metric: str):
         raise ValueError('Metric "{}" unknown'.format(metric))
 
 
-def main(csv_file: str, plot_dir: str):
+def main(csv_files: str, plot_dir: str):
     metrics = ('DICE', 'HDRFDST')  # the metrics we want to plot the results for
     metrics_yaxis_limits = ((0.0, 1.0), (0.0, None))  # tuples of y-axis limits (min, max) for each metric. Use None if unknown
-    labels = ('WhiteMatter', 'Amygdala')  # the brain structures/tissues you are interested in
+    labels = ('WhiteMatter', 'Amygdala', 'GreyMatter', 'Hippocampus', 'Thalamus')  # the brain structures/tissues you are interested in
 
     # load the CSVs. We usually want to compare different methods (e.g. a set of different features), therefore,
     # we load two CSV (for simplicity, it is the same here)
     # todo: adapt to your needs to compare different methods (e.g. load different CSVs)
-    df_method1 = pd.read_csv(csv_file, sep=';')
-    df_method2 = pd.read_csv(csv_file, sep=';')
+    df_method1 = pd.read_csv(csv_files[0], sep=';')
+    df_method2 = pd.read_csv(csv_files[1], sep=';')
     dfs = [df_method1, df_method2]
 
     # some parameters to improve the plot's readability
-    methods = ('Method 1', 'Method 2')
-    title = 'Your experiment comparing method 1 and 2 on {}'
+    methods = ('No Normalization', 'Z-Score')
+    title = 'Evaluation of different normalizing methods on {}'
 
     for label in labels:
         for metric, (min_, max_) in zip(metrics, metrics_yaxis_limits):
@@ -104,9 +104,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Result plotting.')
 
     parser.add_argument(
-        '--csv_file',
-        type=str,
-        default='mia-result/results.csv',
+        '--csv_files',
+        type=list,
+        default=['mia-result/no-results.csv',
+                 'mia-result/z-results.csv'],
         help='Path to the result CSV file.'
     )
 
@@ -118,4 +119,4 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-    main(args.csv_file, args.plot_dir)
+    main(args.csv_files, args.plot_dir)

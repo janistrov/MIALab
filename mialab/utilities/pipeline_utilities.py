@@ -5,6 +5,7 @@ import typing as t
 import warnings
 
 import numpy as np
+import matplotlib.pyplot as plt
 import pymia.data.conversion as conversion
 import pymia.filtering.filter as fltr
 import pymia.evaluation.evaluator as eval_
@@ -19,6 +20,19 @@ import mialab.utilities.multi_processor as mproc
 
 atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
+
+
+def plot_slice(image: sitk.Image):
+    """Plots a slice of an image.
+
+    Args:
+        image (sitk.Image): The image.
+    """
+
+    img_arr = sitk.GetArrayFromImage(image)
+    plt.imshow(img_arr[80,:,:], cmap='gray')
+    plt.colorbar()
+    plt.show()
 
 
 def load_atlas_images(directory: str):
