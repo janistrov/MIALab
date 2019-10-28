@@ -70,7 +70,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
-    norm_method = 'hm'
+    #  'fcm':   FCM White Matter Alignment
+    norm_method = 'fcm'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'

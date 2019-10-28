@@ -9,17 +9,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
+import mialab.utilities.pipeline_utilities as util
 import os
 
 
 class ImageNormalization(pymia_fltr.IFilter):
     """Represents a normalization filter."""
 
-    def __init__(self, id_, norm_method='no', standard_scale=None, percs=None, mask=None):
+    def __init__(self, id_, T_, norm_method='no', standard_scale=None, percs=None, mask=None):
         """Initializes a new instance of the ImageNormalization class."""
         super().__init__()
+        # general
         self.id_ = id_
+        self.T_ = T_
         self.norm_method = norm_method
+
+        # histogram matching
         self.standard_scale = standard_scale
         self.mask = mask
         self.percs = percs
@@ -48,9 +53,32 @@ class ImageNormalization(pymia_fltr.IFilter):
         elif self.norm_method == 'hm':
             print('Normalization method: Histogram Matching')
             self.plot_hist(img_arr)
-            img_norm = self.do_hist_norm(img_arr)
-            self.plot_hist(img_norm, normalized=True)
-            img_arr = img_norm
+            img_arr = self.do_hist_norm(img_arr)
+            self.plot_hist(img_arr, normalized=True)
+
+        elif self.norm_method == 'fcm':
+            print('Normalization method: FCM WM-Aligning')
+            threshold = 0.6
+            brain_mask = sitk.GetArrayFromImage(self.mask)
+            fcm_clusters = util.fcm_mask(img_arr, brain_mask, maxiter=30)
+
+            if self.T_ is 'T1w':
+                wm_mask = fcm_clusters[..., 2] > threshold
+            elif self.T_ is 'T2w':
+                wm_mask = fcm_clusters[..., 0] > threshold
+
+            clusters = np.zeros(img_arr.shape)
+            for i in range(3):
+                clusters[fcm_clusters[..., i] > threshold] = i + 1
+            plt.figure()
+            plt.title('White Matter Mask of of ID ' + self.id_)
+            plt.imshow(clusters[100, :, :])
+            plt.axis('off')
+            plt.savefig('./mia-result/plots/WM_Mask_' + self.T_ + '_' + self.id_ + '.png')
+            plt.close()
+
+            wm_mean = img_arr[wm_mask == 1].mean()
+            img_arr = (img_arr/wm_mean)
 
         elif self.norm_method == 'no':
             print('No Normalization')
@@ -94,10 +122,10 @@ class ImageNormalization(pymia_fltr.IFilter):
         plt.hist(np.ravel(image[idx]), bins=200)
         if normalized is False:
             plt.title('Intensity Histogram of ID ' + self.id_)
-            plt.savefig('./mia-result/plots/Histogram_' + self.id_ + '.png')
+            plt.savefig('./mia-result/plots/Histogram_' + self.T_ + '_' + self.id_ + '.png')
         else:
             plt.title('Normalized Intensity Histogram of ID ' + self.id_)
-            plt.savefig('./mia-result/plots/Histogram_' + self.id_ + '_Normalized.png')
+            plt.savefig('./mia-result/plots/Histogram_' + self.T_ + '_' + self.id_ + '_Normalized.png')
         plt.close()
 
     def __str__(self):

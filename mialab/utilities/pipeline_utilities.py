@@ -12,6 +12,7 @@ import pymia.evaluation.evaluator as eval_
 import pymia.evaluation.metric as metric
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
+from skfuzzy import cmeans
 
 import mialab.data.structure as structure
 import mialab.filtering.feature_extraction as fltr_feat
@@ -23,14 +24,39 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
+# STUDENT: Make WM-Mask with C-Means
+def fcm_mask(image: np.array, brain_mask: np.array, maxiter=50):
+    """
+    creates a mask of tissue classes for a target brain with fuzzy c-means
+    Args:
+        image (np.array): The image
+        brain_mask (np.array): The brain mask
+        maxiter (scalar): Maximum iterations for fuzzy c-means
+
+    Returns:
+        mask (np.ndarray): Membership values for each of three classes in the image
+    """
+    [cntr, mem, _, _, _, _, fpc] = cmeans(image[brain_mask == 1].reshape(-1,len(image[(brain_mask == 1)])),
+                                          3, 2, error=0.005, maxiter=maxiter)
+    mem_list = [mem[i] for i, _ in sorted(enumerate(cntr), key=lambda x: x[1])]  # CSF/GM/WM
+    mask = np.zeros(image.shape + (3,))
+    for i in range(3):
+        mask[..., i][brain_mask == 1] = mem_list[i]
+    # if hard_seg:
+    #   tmp_mask = np.zeros(image.shape)
+    #   tmp_mask[brain_mask == 1] = np.argmax(mask[brain_mask == 1], axis=1) + 1
+    #   mask = tmp_mask
+
+    return mask
+
+
 # STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
     """Plots a slice of an image.
 
     Args:
-        image (sitk.Image): The image.
+        image (sitk.Image): The image
     """
-
     img_arr = sitk.GetArrayFromImage(image)
     plt.figure()
     plt.imshow(img_arr[80, :, :], cmap='gray')
@@ -304,11 +330,12 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
                               len(pipeline_t1.filters) - 1)
     if kwargs.get('normalization_pre', False):
         if norm_method is 'hm':
-            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method, standard_scales[0], percs,
+            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img.id_, 'T1w', norm_method, standard_scales[0], percs,
                                                                 mask=img.images[structure.BrainImageTypes.BrainMask]))
 
         else:
-            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method))
+            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img.id_, 'T1w', norm_method,
+                                                                mask=img.images[structure.BrainImageTypes.BrainMask]))
 
     # execute pipeline on the T1w image
     img.images[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img.images[structure.BrainImageTypes.T1w])
@@ -325,11 +352,12 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
                               len(pipeline_t2.filters) - 1)
     if kwargs.get('normalization_pre', False):
         if norm_method is 'hm':
-            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method, standard_scales[1], percs,
+            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img.id_, 'T2w', norm_method, standard_scales[1], percs,
                                                                 mask=img.images[structure.BrainImageTypes.BrainMask]))
 
         else:
-            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method))
+            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img.id_, 'T2w', norm_method,
+                                                                mask=img.images[structure.BrainImageTypes.BrainMask]))
 
     # execute pipeline on the T2w image
     img.images[structure.BrainImageTypes.T2w] = pipeline_t2.execute(img.images[structure.BrainImageTypes.T2w])

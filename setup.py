@@ -23,7 +23,7 @@ REQUIRED_PACKAGES = [
     'scipy >= 1.3.1',
     'SimpleITK >= 1.2.2',
     'sphinx >= 2.2.0',
-    'sphinx_rtd_theme >= 0.4.3',
+    'sphinx_rtd_theme >= 0.4.3', 'scikit-fuzzy'
 ]
 
 TEST_PACKAGES = [

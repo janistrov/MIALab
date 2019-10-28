@@ -80,10 +80,11 @@ def main(csv_files: str, plot_dir: str):
     df_method1 = pd.read_csv(csv_files[0], sep=';')
     df_method2 = pd.read_csv(csv_files[1], sep=';')
     df_method3 = pd.read_csv(csv_files[2], sep=';')
-    dfs = [df_method1, df_method2, df_method3]
+    df_method4 = pd.read_csv(csv_files[3], sep=';')
+    dfs = [df_method1, df_method2, df_method3, df_method4]
 
     # some parameters to improve the plot's readability
-    methods = ('No Normalization', 'Z-Score', 'Histogram Matching')
+    methods = ('No Normalization', 'Z-Score', 'Histogram Matching', 'FCM-Based')
     title = 'Evaluation of different normalizing methods on {}'
 
     for label in labels:
@@ -109,7 +110,8 @@ if __name__ == '__main__':
         type=list,
         default=['mia-result/no-results.csv',
                  'mia-result/z-results.csv',
-                 'mia-result/hm-results.csv'],
+                 'mia-result/hm-results.csv',
+                 'mia-result/fcm-results.csv'],
         help='Path to the result CSV file.'
     )
 
