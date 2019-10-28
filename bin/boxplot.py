@@ -79,15 +79,16 @@ def main(csv_files: str, plot_dir: str):
     # todo: adapt to your needs to compare different methods (e.g. load different CSVs)
     df_method1 = pd.read_csv(csv_files[0], sep=';')
     df_method2 = pd.read_csv(csv_files[1], sep=';')
-    dfs = [df_method1, df_method2]
+    df_method3 = pd.read_csv(csv_files[2], sep=';')
+    dfs = [df_method1, df_method2, df_method3]
 
     # some parameters to improve the plot's readability
-    methods = ('No Normalization', 'Z-Score')
+    methods = ('No Normalization', 'Z-Score', 'Histogram Matching')
     title = 'Evaluation of different normalizing methods on {}'
 
     for label in labels:
         for metric, (min_, max_) in zip(metrics, metrics_yaxis_limits):
-            boxplot(os.path.join(plot_dir, '{}_{}.png'.format(label, metric)),
+            boxplot(os.path.join(plot_dir, 'Boxplot_{}_{}.png'.format(label, metric)),
                     [format_data(df, label, metric) for df in dfs],
                     title.format(label),
                     'Method', metric_to_readable_text(metric),
@@ -107,7 +108,8 @@ if __name__ == '__main__':
         '--csv_files',
         type=list,
         default=['mia-result/no-results.csv',
-                 'mia-result/z-results.csv'],
+                 'mia-result/z-results.csv',
+                 'mia-result/hm-results.csv'],
         help='Path to the result CSV file.'
     )
 

@@ -5,17 +5,24 @@ Image pre-processing aims to improve the image quality (image intensities) for s
 import warnings
 
 import pymia.filtering.filter as pymia_fltr
+import matplotlib.pyplot as plt
+import numpy as np
 import SimpleITK as sitk
+from scipy.interpolate import interp1d
 import os
 
 
 class ImageNormalization(pymia_fltr.IFilter):
     """Represents a normalization filter."""
 
-    def __init__(self, norm_method='z'):
+    def __init__(self, id_, norm_method='no', standard_scale=None, percs=None, mask=None):
         """Initializes a new instance of the ImageNormalization class."""
         super().__init__()
+        self.id_ = id_
         self.norm_method = norm_method
+        self.standard_scale = standard_scale
+        self.mask = mask
+        self.percs = percs
 
     def execute(self, image: sitk.Image, params: pymia_fltr.IFilterParams = None) -> sitk.Image:
         """Executes a normalization on an image.
@@ -38,9 +45,15 @@ class ImageNormalization(pymia_fltr.IFilter):
             std = img_arr.std()
             img_arr = (img_arr - mean) / std
 
-        elif self.norm_method == 'ws':
-            # todo
-            print('Normalization method: White Stripe')
+        elif self.norm_method == 'hm':
+            print('Normalization method: Histogram Matching')
+            self.plot_hist(img_arr)
+            img_norm = self.do_hist_norm(img_arr)
+            self.plot_hist(img_norm, normalized=True)
+            img_arr = img_norm
+
+        elif self.norm_method == 'no':
+            print('No Normalization')
 
         else:
             print('Normalization method not known. Pre processing runs without normalization.')
@@ -50,6 +63,42 @@ class ImageNormalization(pymia_fltr.IFilter):
         img_out.CopyInformation(image)
 
         return img_out
+
+    def do_hist_norm(self, image):
+        """
+        Does the Nyul and Udupa histogram normalization routine with a given set of learned landmarks
+
+        Args:
+            image (array): The image to normalize
+
+        Returns:
+            image_norm (array): Normalized image
+        """
+        idx = (sitk.GetArrayFromImage(self.mask) == 1)
+        masked = image[idx]
+        landmarks = np.percentile(masked, self.percs)
+        f = interp1d(landmarks, self.standard_scale, fill_value='extrapolate')
+        normed = f(image)
+
+        return normed
+
+    def plot_hist(self, image, normalized=False):
+        """
+        Makes a intensity histogram and saves it
+
+        Args:
+            image (array): The image
+            normalized (bool): Indicates if the image is normalized (True) or not (False)
+        """
+        idx = (sitk.GetArrayFromImage(self.mask) == 1)
+        plt.hist(np.ravel(image[idx]), bins=200)
+        if normalized is False:
+            plt.title('Intensity Histogram of ID ' + self.id_)
+            plt.savefig('./mia-result/plots/Histogram_' + self.id_ + '.png')
+        else:
+            plt.title('Normalized Intensity Histogram of ID ' + self.id_)
+            plt.savefig('./mia-result/plots/Histogram_' + self.id_ + '_Normalized.png')
+        plt.close()
 
     def __str__(self):
         """Gets a printable string representation.

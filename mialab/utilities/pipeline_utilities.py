@@ -11,6 +11,7 @@ import pymia.filtering.filter as fltr
 import pymia.evaluation.evaluator as eval_
 import pymia.evaluation.metric as metric
 import SimpleITK as sitk
+from scipy.interpolate import interp1d
 
 import mialab.data.structure as structure
 import mialab.filtering.feature_extraction as fltr_feat
@@ -22,6 +23,7 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
+# STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
     """Plots a slice of an image.
 
@@ -30,9 +32,82 @@ def plot_slice(image: sitk.Image):
     """
 
     img_arr = sitk.GetArrayFromImage(image)
-    plt.imshow(img_arr[80,:,:], cmap='gray')
+    plt.figure()
+    plt.imshow(img_arr[80, :, :], cmap='gray')
     plt.colorbar()
     plt.show()
+
+
+# STUDENT: Calculate standard histogram for histogram matching norm
+def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
+                  i_s_max=100, l_percentile=10, u_percentile=90, step=10):
+    """Determine the standard scale for the set of images
+    
+    Args:
+        imgs (list): The images in a structure
+        i_min (float):Mminimum percentile to consider in the images
+        i_max (float): Maximum percentile to consider in the images
+        i_s_min (float): Minimum percentile on the standard scale
+        i_s_max (float): Maximum percentile on the standard scale
+        l_percentile (int): Middle percentile lower bound (e.g., for deciles 10)
+        u_percentile (int): Middle percentile upper bound (e.g., for deciles 90)
+        step (int): step for Middle percentiles (e.g., for deciles 10)
+
+    Returns:
+        standard_scales (tuple of array): Average landmark intensity for T1w and T2w images
+        percs (array): Array of all percentiles used
+    """
+    percs = np.concatenate(([i_min], np.arange(l_percentile, u_percentile + 1, step), [i_max]))
+    T1w_standard_scale = np.zeros(len(percs))
+    T2w_standard_scale = np.zeros(len(percs))
+
+    for i, image in enumerate(imgs):
+        # get images as arrays
+        T1w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T1w])
+        T2w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T2w])
+        mask = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.BrainMask])
+
+        # get landmarks
+        T1w_masked, T2w_masked = T1w[(mask == 1)], T2w[(mask == 1)]
+        T1w_landmarks, T2w_landmarks = np.percentile(T1w_masked, percs), np.percentile(T2w_masked, percs)
+
+        # interpolate ends
+        T1w_min_p, T2w_min_p = np.percentile(T1w_masked, i_min), np.percentile(T2w_masked, i_min)
+        T1w_max_p, T2w_max_p = np.percentile(T1w_masked, i_max), np.percentile(T2w_masked, i_max)
+        T1w_f = interp1d([T1w_min_p, T1w_max_p], [i_s_min, i_s_max])
+        T2w_f = interp1d([T2w_min_p, T2w_max_p], [i_s_min, i_s_max])
+        T1w_landmarks, T2w_landmarks = np.array(T1w_f(T1w_landmarks)), np.array(T2w_f(T2w_landmarks))
+
+        # get standart scale
+        T1w_standard_scale += T1w_landmarks
+        T2w_standard_scale += T2w_landmarks
+
+    T1w_standard_scale = T1w_standard_scale / len(imgs)
+    T2w_standard_scale = T2w_standard_scale / len(imgs)
+
+    return (T1w_standard_scale, T2w_standard_scale), percs
+
+
+# STUDENT: Load images to get standart scale histogram
+def hm_load_images(id_: str, paths: dict) -> structure.BrainImage:
+    """Loads an image
+
+    Args:
+        id_ (str): An image identifier.
+        paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
+            and the values are paths to the images.
+
+    Returns:
+        (structure.BrainImage):
+    """
+    paths_temp = paths.copy()
+    path = paths_temp.pop(id_, '')
+    path_to_transform = paths_temp.pop(structure.BrainImageTypes.RegistrationTransform, '')
+    img = {img_key: sitk.ReadImage(path) for img_key, path in paths_temp.items()}
+    transform = sitk.ReadTransform(path_to_transform)
+    img = structure.BrainImage(id_, path, img, transform)
+
+    return img
 
 
 def load_atlas_images(directory: str):
@@ -174,7 +249,8 @@ class FeatureExtractor:
         return image.reshape((no_voxels, number_of_components))
 
 
-def pre_process(id_: str, paths: dict, norm_method: str='z', **kwargs) -> structure.BrainImage:
+def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales: tuple = None, percs: np.array = None,
+                **kwargs) -> structure.BrainImage:
     """Loads and processes an image.
 
     The processing includes:
@@ -188,6 +264,8 @@ def pre_process(id_: str, paths: dict, norm_method: str='z', **kwargs) -> struct
         paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
             and the values are paths to the images.
         norm_method (str): Normalization method
+        standard_scales (tuple): Standard scaling for histogram matching normalization for T1w and T2w images
+        percs (np.array): Percentiles for histogram matching
 
     Returns:
         (structure.BrainImage):
@@ -208,7 +286,7 @@ def pre_process(id_: str, paths: dict, norm_method: str='z', **kwargs) -> struct
     if kwargs.get('registration_pre', False):
         pipeline_brain_mask.add_filter(fltr_prep.ImageRegistration())
         pipeline_brain_mask.set_param(fltr_prep.ImageRegistrationParameters(atlas_t1, img.transformation, True),
-                              len(pipeline_brain_mask.filters) - 1)
+                                      len(pipeline_brain_mask.filters) - 1)
 
     # execute pipeline on the brain mask image
     img.images[structure.BrainImageTypes.BrainMask] = pipeline_brain_mask.execute(
@@ -225,7 +303,12 @@ def pre_process(id_: str, paths: dict, norm_method: str='z', **kwargs) -> struct
         pipeline_t1.set_param(fltr_prep.SkullStrippingParameters(img.images[structure.BrainImageTypes.BrainMask]),
                               len(pipeline_t1.filters) - 1)
     if kwargs.get('normalization_pre', False):
-        pipeline_t1.add_filter(fltr_prep.ImageNormalization(norm_method))
+        if norm_method is 'hm':
+            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method, standard_scales[0], percs,
+                                                                mask=img.images[structure.BrainImageTypes.BrainMask]))
+
+        else:
+            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method))
 
     # execute pipeline on the T1w image
     img.images[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img.images[structure.BrainImageTypes.T1w])
@@ -241,7 +324,12 @@ def pre_process(id_: str, paths: dict, norm_method: str='z', **kwargs) -> struct
         pipeline_t2.set_param(fltr_prep.SkullStrippingParameters(img.images[structure.BrainImageTypes.BrainMask]),
                               len(pipeline_t2.filters) - 1)
     if kwargs.get('normalization_pre', False):
-        pipeline_t2.add_filter(fltr_prep.ImageNormalization(norm_method))
+        if norm_method is 'hm':
+            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method, standard_scales[1], percs,
+                                                                mask=img.images[structure.BrainImageTypes.BrainMask]))
+
+        else:
+            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img.id_, norm_method))
 
     # execute pipeline on the T2w image
     img.images[structure.BrainImageTypes.T2w] = pipeline_t2.execute(img.images[structure.BrainImageTypes.T2w])
@@ -324,7 +412,8 @@ def init_evaluator(directory: str, result_file_name: str = 'results.csv') -> eva
 
 
 def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.BrainImage],
-                      pre_process_params: dict=None, norm_method: str='z', multi_process=True) -> t.List[structure.BrainImage]:
+                      pre_process_params: dict = None, norm_method: str = 'no', multi_process=True) -> t.List[
+    structure.BrainImage]:
     """Loads and pre-processes a batch of images.
 
     The pre-processing includes:
@@ -349,12 +438,21 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
     if multi_process:
         images = mproc.MultiProcessor.run(pre_process, params_list, pre_process_params, mproc.PreProcessingPickleHelper)
     else:
-        images = [pre_process(id_, path, norm_method=norm_method, **pre_process_params) for id_, path in params_list]
+        if norm_method is 'hm':
+            images_unprocessed = [hm_load_images(id_, path) for id_, path in params_list]
+            standard_scales, percs = hist_to_match(images_unprocessed)
+            images_unprocessed.clear()
+            images = [pre_process(id_, path, norm_method=norm_method, standard_scales=standard_scales, percs=percs,
+                                  **pre_process_params) for id_, path in params_list]
+        else:
+            images = [pre_process(id_, path, norm_method=norm_method, **pre_process_params) for id_, path in
+                      params_list]
+
     return images
 
 
 def post_process_batch(brain_images: t.List[structure.BrainImage], segmentations: t.List[sitk.Image],
-                       probabilities: t.List[sitk.Image], post_process_params: dict=None,
+                       probabilities: t.List[sitk.Image], post_process_params: dict = None,
                        multi_process=True) -> t.List[sitk.Image]:
     """ Post-processes a batch of images.
 

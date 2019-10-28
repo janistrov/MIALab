@@ -60,7 +60,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': False,
+                          'normalization_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
@@ -69,7 +69,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
-    norm_method = 'z'
+    #  'hm':    Histogram Matching
+    norm_method = 'hm'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -78,7 +79,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,  multi_process=False)
 
     # STUDENT: plot a slice of a sample image for visual inspection
-    putil.plot_slice(images[0].images[structure.BrainImageTypes.T1w])
+    # putil.plot_slice(images[0].images[structure.BrainImageTypes.T1w])
 
     # STUDENT: save preprocessed images for visual inspection
     for i, img in enumerate(images):
