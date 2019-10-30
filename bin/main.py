@@ -71,7 +71,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'fcm'
+    norm_method = 'ws'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
