@@ -12,7 +12,6 @@ import pymia.evaluation.evaluator as eval_
 import pymia.evaluation.metric as metric
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
-from skfuzzy import cmeans
 
 import mialab.data.structure as structure
 import mialab.filtering.feature_extraction as fltr_feat
@@ -24,30 +23,7 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
-# STUDENT: Make WM-Mask with C-Means
-def fcm_mask(image: np.array, brain_mask: np.array, maxiter=50):
-    """
-    creates a mask of tissue classes for a target brain with fuzzy c-means
-    Args:
-        image (np.array): The image
-        brain_mask (np.array): The brain mask
-        maxiter (scalar): Maximum iterations for fuzzy c-means
 
-    Returns:
-        mask (np.ndarray): Membership values for each of three classes in the image
-    """
-    [cntr, mem, _, _, _, _, fpc] = cmeans(image[brain_mask == 1].reshape(-1,len(image[(brain_mask == 1)])),
-                                          3, 2, error=0.005, maxiter=maxiter)
-    mem_list = [mem[i] for i, _ in sorted(enumerate(cntr), key=lambda x: x[1])]  # CSF/GM/WM
-    mask = np.zeros(image.shape + (3,))
-    for i in range(3):
-        mask[..., i][brain_mask == 1] = mem_list[i]
-    # if hard_seg:
-    #   tmp_mask = np.zeros(image.shape)
-    #   tmp_mask[brain_mask == 1] = np.argmax(mask[brain_mask == 1], axis=1) + 1
-    #   mask = tmp_mask
-
-    return mask
 
 
 # STUDENT: Plot a slice for visual inspection

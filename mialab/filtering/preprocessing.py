@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
-import mialab.utilities.pipeline_utilities as util
+from skfuzzy import cmeans
+from scipy.signal import argrelmax
+import statsmodels.api as sm
 import os
 
 
@@ -23,7 +25,6 @@ class ImageNormalization(pymia_fltr.IFilter):
         self.id_ = id_
         self.T_ = T_
         self.norm_method = norm_method
-
         # histogram matching
         self.standard_scale = standard_scale
         self.mask = mask
@@ -50,6 +51,20 @@ class ImageNormalization(pymia_fltr.IFilter):
             std = img_arr.std()
             img_arr = (img_arr - mean) / std
 
+        elif self.norm_method == 'ws':
+            print('Normalization method: White Stripe')
+            indices = self.white_stripe(img_arr)
+            plt.figure()
+            plt.title('White Stripe Mask of of ID ' + self.id_)
+            plt.imshow(indices[100, :, :])
+            plt.axis('off')
+            plt.savefig('./mia-result/plots/WS_Mask_' + self.T_ + '_' + self.id_ + '.png')
+            plt.close()
+            # Normalization step
+            mean = np.mean(img_arr[indices])
+            std = np.std(img_arr[indices])
+            img_arr = (img_arr - mean) / std
+
         elif self.norm_method == 'hm':
             print('Normalization method: Histogram Matching')
             self.plot_hist(img_arr)
@@ -57,26 +72,28 @@ class ImageNormalization(pymia_fltr.IFilter):
             self.plot_hist(img_arr, normalized=True)
 
         elif self.norm_method == 'fcm':
-            print('Normalization method: FCM WM-Aligning')
-            threshold = 0.8
-            brain_mask = sitk.GetArrayFromImage(self.mask)
-            fcm_clusters = util.fcm_mask(img_arr, brain_mask, maxiter=50)
-
+            print('Normalization method: FCM White Matter Aligning')
+            threshold = 0.6
+            fcm_clusters = self.fcm_mask(img_arr, maxiter=30)
+            # Create mask with white matter cluster
             if self.T_ is 'T1w':
                 wm_mask = fcm_clusters[..., 2] > threshold
             elif self.T_ is 'T2w':
                 wm_mask = fcm_clusters[..., 0] > threshold
-
+            else:
+                print('Wrong entry for image contrast')
+                wm_mask = None
+            # Plot clusters for visual inspection
             clusters = np.zeros(img_arr.shape)
             for i in range(3):
                 clusters[fcm_clusters[..., i] > threshold] = i + 1
             plt.figure()
-            plt.title('FCM Masks of ID ' + self.id_)
+            plt.title('White Matter Mask of of ID ' + self.id_)
             plt.imshow(clusters[100, :, :])
             plt.axis('off')
-            plt.savefig('./mia-result/plots/FCM_Mask_' + self.T_ + '_' + self.id_ + '.png')
+            plt.savefig('./mia-result/plots/WM_Mask_' + self.T_ + '_' + self.id_ + '.png')
             plt.close()
-
+            # Normalization step
             wm_mean = img_arr[wm_mask == 1].mean()
             img_arr = (img_arr/wm_mean)
 
@@ -92,12 +109,106 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         return img_out
 
+    def white_stripe(self, image, width=0.05):
+        """
+        Find the "(normal appearing) white (matter) stripe" of the input MR image
+        and return the indices
+
+        Args:
+            image (ndarray): The image to normalize
+            width (float): Width quantile for the "white (matter) stripe"
+
+        Returns:
+            ws_ind (array): The white stripe indices (boolean mask)
+        """
+        brain_mask = sitk.GetArrayFromImage(self.mask)
+        voi = image[brain_mask == 1]
+        if self.T_ is 'T1w':
+            mode, grid, pdf = self.hist_get_last_mode(voi)
+        elif self.T_ is 'T2w':
+            mode, grid, pdf = self.hist_get_largest_mode(voi)
+        else:
+            print('Wrong entry for image contrast')
+            mode, grid, pdf = None, None, None
+        img_mode_q = np.mean(voi < mode)
+        ws = np.percentile(voi, (max(img_mode_q - width, 0) * 100, min(img_mode_q + width, 1) * 100))
+        ws_ind = np.logical_and(image > ws[0], image < ws[1])
+        if len(ws_ind) == 0:
+            print('WhiteStripe failed to find any valid indices!')
+        plt.figure()
+        plt.title('White Stripe of of ID ' + self.id_)
+        plt.xlabel('Intensity')
+        plt.ylabel('PDF')
+        plt.plot(grid, pdf, color='b')
+        plt.plot([ws[0], ws[0]], [0, max(pdf)], '--', color='r')
+        plt.plot([ws[1], ws[1]], [0, max(pdf)], '--', color='r')
+        plt.savefig('./mia-result/plots/WS_' + self.T_ + '_' + self.id_ + '.png')
+        plt.close()
+
+        return ws_ind
+
+    def hist_get_last_mode(self, voi):
+        """
+        Gets the largest (reliable) peak in the histogram
+
+        Args:
+            voi (ndarray): Voxels of interest
+
+        Returns:
+            last_peak (int): Index of the largest peak
+            grid (array): Domain of the pdf
+            pdf (array): Kernel density estimate of the pdf of data
+        """
+        rare_prop = 96
+        rare_thresh = np.percentile(voi, rare_prop)  # intensity corresponding to 96 quantile
+        which_rare = voi >= rare_thresh
+        voi = voi[which_rare == 0]  # cuts away intensities above rare_thresh
+        grid, pdf = self.smooth_hist(voi)
+        maxima = argrelmax(pdf)[0]  # for some reason argrelmax returns a tuple, so [0] extracts value
+        last_peak = grid[maxima[-1]]  # gives intensity (read on grid) of last pdf peak
+
+        return last_peak, grid, pdf
+
+    def hist_get_largest_mode(self, data):
+        """
+        Gets the last (reliable) peak in the histogram
+
+        Args:
+            data (np.array): Voxels of interest
+
+        Returns:
+            largest_peak (int): Index of the largest peak
+        """
+        grid, pdf = self.smooth_hist(data)
+        largest_peak = grid[np.argmax(pdf)]
+        return largest_peak, grid, pdf
+
+    def smooth_hist(self, data):
+        """
+        Use KDE to get smooth estimate of histogram
+
+        Args:
+            data (np.array): Voxels of interest
+
+        Returns:
+            grid (array): Domain of the pdf
+            pdf (array): Kernel density estimate of the pdf of data
+        """
+        data = data.flatten().astype(np.float64)
+        bw = data.max() / 80
+        kde = sm.nonparametric.KDEUnivariate(data)
+        kde.fit(kernel='gau', bw=bw, gridsize=80, fft=True)
+        pdf = 100.0 * kde.density
+        grid = kde.support
+
+        return grid, pdf
+
     def do_hist_norm(self, image):
         """
         Does the Nyul and Udupa histogram normalization routine with a given set of learned landmarks
 
         Args:
-            image (array): The image to normalize
+            image (np.array): The image to normalize
 
         Returns:
             image_norm (array): Normalized image
@@ -115,7 +226,7 @@ class ImageNormalization(pymia_fltr.IFilter):
         Makes a intensity histogram and saves it
 
         Args:
-            image (array): The image
+            image (np.array): The image
             normalized (bool): Indicates if the image is normalized (True) or not (False)
         """
         idx = (sitk.GetArrayFromImage(self.mask) == 1)
@@ -127,6 +238,28 @@ class ImageNormalization(pymia_fltr.IFilter):
             plt.title('Normalized Intensity Histogram of ID ' + self.id_)
             plt.savefig('./mia-result/plots/Histogram_' + self.T_ + '_' + self.id_ + '_Normalized.png')
         plt.close()
+
+    def fcm_mask(self, image, maxiter=50):
+        """
+        creates a mask of tissue classes for a target brain with fuzzy c-means
+
+        Args:
+            image (np.array): The image
+            brain_mask (np.array): The brain mask
+            maxiter (scalar): Maximum iterations for fuzzy c-means
+
+        Returns:
+            mask (np.ndarray): Membership values for each of three classes in the image
+        """
+        brain_mask = sitk.GetArrayFromImage(self.mask)
+        [cntr, mem, _, _, _, _, fpc] = cmeans(image[brain_mask == 1].reshape(-1, len(image[(brain_mask == 1)])),
+                                              3, 2, error=0.005, maxiter=maxiter)
+        mem_list = [mem[i] for i, _ in sorted(enumerate(cntr), key=lambda x: x[1])]  # CSF/GM/WM
+        mask = np.zeros(image.shape + (3,))
+        for i in range(3):
+            mask[..., i][brain_mask == 1] = mem_list[i]
+
+        return mask
 
     def __str__(self):
         """Gets a printable string representation.
