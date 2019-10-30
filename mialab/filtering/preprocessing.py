@@ -58,9 +58,9 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         elif self.norm_method == 'fcm':
             print('Normalization method: FCM WM-Aligning')
-            threshold = 0.6
+            threshold = 0.8
             brain_mask = sitk.GetArrayFromImage(self.mask)
-            fcm_clusters = util.fcm_mask(img_arr, brain_mask, maxiter=30)
+            fcm_clusters = util.fcm_mask(img_arr, brain_mask, maxiter=50)
 
             if self.T_ is 'T1w':
                 wm_mask = fcm_clusters[..., 2] > threshold
@@ -71,10 +71,10 @@ class ImageNormalization(pymia_fltr.IFilter):
             for i in range(3):
                 clusters[fcm_clusters[..., i] > threshold] = i + 1
             plt.figure()
-            plt.title('White Matter Mask of of ID ' + self.id_)
+            plt.title('FCM Masks of ID ' + self.id_)
             plt.imshow(clusters[100, :, :])
             plt.axis('off')
-            plt.savefig('./mia-result/plots/WM_Mask_' + self.T_ + '_' + self.id_ + '.png')
+            plt.savefig('./mia-result/plots/FCM_Mask_' + self.T_ + '_' + self.id_ + '.png')
             plt.close()
 
             wm_mean = img_arr[wm_mask == 1].mean()
