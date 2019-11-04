@@ -12,6 +12,7 @@ import pymia.evaluation.evaluator as eval_
 import pymia.evaluation.metric as metric
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
+import statsmodels.api as sm
 
 import mialab.data.structure as structure
 import mialab.filtering.feature_extraction as fltr_feat
@@ -23,8 +24,19 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
+# STUDENT: Plot smooth histogram for inspection
+def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
+    """Plots a slice of an image.
 
+    Args:
+        image (sitk.Image): The image
+        mask (sitk.Image):  The mask
+    """
+    img_arr = sitk.GetArrayFromImage(image)
+    msk_arr = sitk.GetArrayFromImage(mask)
+    masked_intensities = img_arr[msk_arr == 1]
 
+    return masked_intensities
 
 # STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
@@ -47,7 +59,7 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
     
     Args:
         imgs (list): The images in a structure
-        i_min (float):Mminimum percentile to consider in the images
+        i_min (float): Minimum percentile to consider in the images
         i_max (float): Maximum percentile to consider in the images
         i_s_min (float): Minimum percentile on the standard scale
         i_s_max (float): Maximum percentile on the standard scale

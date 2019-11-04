@@ -259,6 +259,11 @@ class ImageNormalization(pymia_fltr.IFilter):
         for i in range(3):
             mask[..., i][brain_mask == 1] = mem_list[i]
 
+        # for inspection of mask on 3D Slicer
+        # save_mask = sitk.GetImageFromArray(mask)
+        # save = os.path.join('./mia-result/norm images/test_mask.nii.gz')
+        # sitk.WriteImage(save_mask, save)
+
         return mask
 
     def __str__(self):
