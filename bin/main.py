@@ -9,6 +9,10 @@ import random
 import sys
 import timeit
 import warnings
+import numpy as np
+import pylab as P
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 import SimpleITK as sitk
 import sklearn.ensemble as sk_ensemble
@@ -66,21 +70,49 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
 
+    # STUDENT: params
+    plot_slice = False
+    plot_hist = True
+
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'ws'
+    norm_method = 'fcm'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
 
     # load images for training and pre-process
-    images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,  multi_process=False)
+    images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method, multi_process=False)
 
-    # STUDENT: plot a slice of a sample image for visual inspection
-    # putil.plot_slice(images[0].images[structure.BrainImageTypes.T1w])
+    # STUDENT: plots for inspection
+    if plot_slice is True:
+        putil.plot_slice(images[0].images[structure.BrainImageTypes.T1w])
+
+    if plot_hist is True:
+        intensities_T1w, intensities_T2w = [], []
+        nr_samples = 3
+        for i in range(nr_samples):
+            intensities_T1w.append(putil.get_masked_intensities(images[i].images[structure.BrainImageTypes.T1w],
+                                   images[i].images[structure.BrainImageTypes.BrainMask]))
+            intensities_T2w.append(putil.get_masked_intensities(images[i].images[structure.BrainImageTypes.T2w],
+                                   images[i].images[structure.BrainImageTypes.BrainMask]))
+        for i in range(nr_samples):
+            plt.figure(1)
+            sns.kdeplot(intensities_T1w[i])
+            plt.figure(2)
+            sns.kdeplot(intensities_T2w[i])
+        for i in range(2):
+            plt.figure(i+1)
+            plt.xlabel('Intensity')
+            plt.ylabel('PDF')
+            plt.title('Intensity density with ' + norm_method + ' normalization method')
+            plt.savefig('./mia-result/plots/Result_Hist_norm-' + norm_method + '_T' + str(i+1) + 'w.png')
+            plt.close()
+
+
 
     # STUDENT: save preprocessed images for visual inspection
     for i, img in enumerate(images):
@@ -122,7 +154,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # load images for testing and pre-process
     pre_process_params['training'] = False
-    images_test = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method, multi_process=False)
+    images_test = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
+                                          multi_process=False)
 
     images_prediction = []
     images_probabilities = []

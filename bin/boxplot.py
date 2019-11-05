@@ -85,7 +85,7 @@ def main(csv_files: str, plot_dir: str):
     dfs = [df_method1, df_method2, df_method3, df_method4, df_method5]
 
     # some parameters to improve the plot's readability
-    methods = ('No Normalization', 'Z-Score', 'White Stripe', 'Histogram Matching', 'FCM-Based')
+    methods = ('None', 'Z-Score', 'WS', 'Hist. Match.', 'FCM')
     title = 'Evaluation of different normalizing methods on {}'
 
     for label in labels:
@@ -95,8 +95,7 @@ def main(csv_files: str, plot_dir: str):
                     title.format(label),
                     'Method', metric_to_readable_text(metric),
                     methods,
-                    min_, max_
-                    )
+                    min_, max_)
 
 
 if __name__ == '__main__':
