@@ -24,7 +24,38 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
-# STUDENT: Plot smooth histogram for inspection
+# STUDENT: Add artifact to images
+def add_artifact(images: structure.BrainImage, artifact_method):
+    """Adds artifacts to images.
+
+    Args:
+        images (structure.BrainImage): The images
+        artifact_method (str): Artifact Method
+    """
+    print('artifact method: ' + artifact_method)
+
+    img = []
+    img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T1w]))
+    img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T2w]))
+    mask = sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.BrainMask])
+
+    img_artifact = []
+
+    if artifact_method == 'none':
+        for i in range(2):
+            img_artifact.append(img[i])
+
+    elif artifact_method == 'gaussian noise':
+        for i in range(2):
+            img_artifact.append(img[i] + np.random.normal(1.0, 100, img[i].shape))
+            # img_artifact[i] = np.where(mask == 0, 0, img_artifact[i])
+            # img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
+
+    images.images[structure.BrainImageTypes.T1w] = sitk.GetImageFromArray(img_artifact[0])
+    images.images[structure.BrainImageTypes.T2w] = sitk.GetImageFromArray(img_artifact[1])
+
+
+# STUDENT: Plot smooth histogram for inspection2
 def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
     """Plots a slice of an image.
 
@@ -37,6 +68,7 @@ def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
     masked_intensities = img_arr[msk_arr == 1]
 
     return masked_intensities
+
 
 # STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
@@ -102,7 +134,7 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
     return (T1w_standard_scale, T2w_standard_scale), percs
 
 
-# STUDENT: Load images to get standart scale histogram
+# STUDENT: Load images to get standard scale histogram
 def hm_load_images(id_: str, paths: dict) -> structure.BrainImage:
     """Loads an image
 
@@ -263,8 +295,8 @@ class FeatureExtractor:
         return image.reshape((no_voxels, number_of_components))
 
 
-def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales: tuple = None, percs: np.array = None,
-                **kwargs) -> structure.BrainImage:
+def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method: str = 'none',
+                standard_scales: tuple = None, percs: np.array = None, **kwargs) -> structure.BrainImage:
     """Loads and processes an image.
 
     The processing includes:
@@ -278,6 +310,7 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
         paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
             and the values are paths to the images.
         norm_method (str): Normalization method
+        artifact_method (str): Artifact method
         standard_scales (tuple): Standard scaling for histogram matching normalization for T1w and T2w images
         percs (np.array): Percentiles for histogram matching
 
@@ -293,6 +326,11 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
     img = {img_key: sitk.ReadImage(path) for img_key, path in paths.items()}
     transform = sitk.ReadTransform(path_to_transform)
     img = structure.BrainImage(id_, path, img, transform)
+
+    print('artifact method: ' + artifact_method)
+    if kwargs.get('artifact_pre', False):
+        add_artifact(img, artifact_method)
+
 
     # construct pipeline for brain mask registration
     # we need to perform this before the T1w and T2w pipeline because the registered mask is used for skull-stripping
@@ -329,7 +367,7 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
     img.images[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img.images[structure.BrainImageTypes.T1w])
 
     # construct pipeline for T2w image pre-processing
-    pipeline_t2 = fltr.FilterPipeline()
+    pipeline_t2 = fltr.FilterPipeline() #  artifacts lead to wrong registration. why??
     if kwargs.get('registration_pre', False):
         pipeline_t2.add_filter(fltr_prep.ImageRegistration())
         pipeline_t2.set_param(fltr_prep.ImageRegistrationParameters(atlas_t2, img.transformation),
@@ -428,8 +466,8 @@ def init_evaluator(directory: str, result_file_name: str = 'results.csv') -> eva
 
 
 def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.BrainImage],
-                      pre_process_params: dict = None, norm_method: str = 'no', multi_process=True) -> t.List[
-    structure.BrainImage]:
+                      pre_process_params: dict = None, norm_method: str = 'no', artifact_method: str = 'none',
+                      multi_process=True) -> t.List[structure.BrainImage]:
     """Loads and pre-processes a batch of images.
 
     The pre-processing includes:
@@ -443,6 +481,7 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
         pre_process_params (dict): Pre-processing parameters.
         multi_process (bool): Whether to use the parallel processing on multiple cores or to run sequentially.
         norm_method (str): Normalization method
+        artifact_method (str): Artifact method
 
     Returns:
         List[structure.BrainImage]: A list of images.
@@ -461,8 +500,8 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
             images = [pre_process(id_, path, norm_method=norm_method, standard_scales=standard_scales, percs=percs,
                                   **pre_process_params) for id_, path in params_list]
         else:
-            images = [pre_process(id_, path, norm_method=norm_method, **pre_process_params) for id_, path in
-                      params_list]
+            images = [pre_process(id_, path, norm_method=norm_method, artifact_method=artifact_method,
+                      **pre_process_params) for id_, path in params_list]
 
     return images
 
