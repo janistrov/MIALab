@@ -89,7 +89,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # 'gaussian noise':     Gaussian Noise
     # 'zero frequencies':   Randomly selected frequencies are zero-filled
     # 'tumor':              Simulation of Tumor
-    artifact_method = 'gaussian noise'
+    artifact_method = 'zero frequencies'
 
     if not pre_process_params['artifact_pre']:
         artifact_method = 'none'

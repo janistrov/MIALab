@@ -47,12 +47,36 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     elif artifact_method == 'gaussian noise':
         for i in range(2):
-            img_artifact.append(img[i] + np.random.normal(1.0, 100, img[i].shape))
-            # img_artifact[i] = np.where(mask == 0, 0, img_artifact[i])
-            # img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
+            img_artifact.append(img[i] + np.random.normal(1.0, 2000, img[i].shape))
+            img_artifact[i] = np.where(mask == 0, 0, img_artifact[i])
+            img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
 
-    images.images[structure.BrainImageTypes.T1w] = sitk.GetImageFromArray(img_artifact[0])
-    images.images[structure.BrainImageTypes.T2w] = sitk.GetImageFromArray(img_artifact[1])
+    elif artifact_method == 'zero frequencies':
+        for i in range(2):
+            # Fourier transform
+            img_fft = np.fft.fftn(img[i])
+            fshift = np.fft.fftshift(img_fft)
+            # Setting random frequencies to zero
+            magnitude_spectrum = 20 * np.log(np.abs(fshift))
+            # Inverse fourier transform
+            fshift[80:120, 80:120, 80:120] = 0.0 # todo
+            f_ishift = np.fft.ifftshift(fshift)
+            img_back = np.fft.ifftn(f_ishift)
+
+            img_artifact.append(np.abs(img_back))
+
+    elif artifact_method == 'tumor':
+        for i in range(2):
+            # todo
+            img_artifact.append(img[i])
+
+    T1w = sitk.GetImageFromArray(img_artifact[0])
+    T1w.CopyInformation(images.images[structure.BrainImageTypes.T1w])
+    images.images[structure.BrainImageTypes.T1w] = T1w
+
+    T2w = sitk.GetImageFromArray(img_artifact[1])
+    T2w.CopyInformation(images.images[structure.BrainImageTypes.T2w])
+    images.images[structure.BrainImageTypes.T2w] = T2w
 
 
 # STUDENT: Plot smooth histogram for inspection2
@@ -112,18 +136,15 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
         T1w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T1w])
         T2w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T2w])
         mask = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.BrainMask])
-
         # get landmarks
         T1w_masked, T2w_masked = T1w[(mask == 1)], T2w[(mask == 1)]
         T1w_landmarks, T2w_landmarks = np.percentile(T1w_masked, percs), np.percentile(T2w_masked, percs)
-
         # interpolate ends
         T1w_min_p, T2w_min_p = np.percentile(T1w_masked, i_min), np.percentile(T2w_masked, i_min)
         T1w_max_p, T2w_max_p = np.percentile(T1w_masked, i_max), np.percentile(T2w_masked, i_max)
         T1w_f = interp1d([T1w_min_p, T1w_max_p], [i_s_min, i_s_max])
         T2w_f = interp1d([T2w_min_p, T2w_max_p], [i_s_min, i_s_max])
         T1w_landmarks, T2w_landmarks = np.array(T1w_f(T1w_landmarks)), np.array(T2w_f(T2w_landmarks))
-
         # get standart scale
         T1w_standard_scale += T1w_landmarks
         T2w_standard_scale += T2w_landmarks
