@@ -65,14 +65,14 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
                           'normalization_pre': False,
-                          'artifact_pre': True,
+                          'artifact_pre': False,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
 
     # STUDENT: params
-    plot_slice = True
+    plot_slice = False
     plot_hist = False
 
     # STUDENT: choose normalization procedure
@@ -164,7 +164,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # load images for testing and pre-process
     pre_process_params['training'] = False
     images_test = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
-                                          multi_process=False)
+                                          artifact_method=artifact_method, multi_process=False)
 
     images_prediction = []
     images_probabilities = []

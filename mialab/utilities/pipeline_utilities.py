@@ -12,6 +12,7 @@ import pymia.evaluation.evaluator as eval_
 import pymia.evaluation.metric as metric
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
+from random import sample
 import statsmodels.api as sm
 
 import mialab.data.structure as structure
@@ -32,8 +33,6 @@ def add_artifact(images: structure.BrainImage, artifact_method):
         images (structure.BrainImage): The images
         artifact_method (str): Artifact Method
     """
-    print('artifact method: ' + artifact_method)
-
     img = []
     img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T1w]))
     img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T2w]))
@@ -47,19 +46,44 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     elif artifact_method == 'gaussian noise':
         for i in range(2):
-            img_artifact.append(img[i] + np.random.normal(1.0, 2000, img[i].shape))
+            std_noise = 2000  # standard deviation of noise with mean 1.0
+            img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
             img_artifact[i] = np.where(mask == 0, 0, img_artifact[i])
             img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
 
     elif artifact_method == 'zero frequencies':
         for i in range(2):
+            # parameters
+            nbr_freq = 3  # number of frequency bands to zero
+            band_length = 5  # length of frequency bands to zero
+
             # Fourier transform
             img_fft = np.fft.fftn(img[i])
             fshift = np.fft.fftshift(img_fft)
+
             # Setting random frequencies to zero
-            magnitude_spectrum = 20 * np.log(np.abs(fshift))
+            idx_zero = np.zeros([3, nbr_freq*band_length])
+            for n in range(3):  # for every dimension
+                # Excluding the middle part (middle +/- 15 voxels) with the low frequencies
+                left = np.arange(0, int(fshift.shape[n]/2) - 15 - band_length)
+                right = np.arange(int(fshift.shape[n]/2) + 15, fshift.shape[n] - band_length)
+                idx_list = list(np.concatenate((left, right)))
+                # take random sample from index list
+                rand_idx = sample(idx_list, nbr_freq)
+                for f in range(nbr_freq):
+                    idx_zero[n, f*band_length:(f+1)*band_length] = np.arange(rand_idx[f], rand_idx[f] + band_length)
+
+            fshift[idx_zero[0].astype(int), :, :] = 0
+            fshift[:, idx_zero[1].astype(int), :] = 0
+            fshift[:, :, idx_zero[2].astype(int)] = 0
+
+            # Make plots of spectrum for visual inspection
+            magnitude_spectrum = np.where(np.abs(fshift) > 0, 20 * np.log(np.abs(fshift)),  0)
+            title = 'Magnitude Spectrum of ' + images.id_ + ' T' + str(i+1) + 'w'
+            path = './mia-result/plots/artifacts/' + images.id_ + '_spectrum' + '_T' + str(i+1) + 'w.png'
+            save_slice(magnitude_spectrum[100, :, :], title, path)
+
             # Inverse fourier transform
-            fshift[80:120, 80:120, 80:120] = 0.0 # todo
             f_ishift = np.fft.ifftshift(fshift)
             img_back = np.fft.ifftn(f_ishift)
 
@@ -67,13 +91,28 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     elif artifact_method == 'tumor':
         for i in range(2):
+            print('artifact method not implemented yet')
             # todo
             img_artifact.append(img[i])
 
+    # Make plots of images with artefacts for visual inspection
+    title = 'ID ' + images.id_ + ' T1w with artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T1w' + '_artifact.png'
+    save_slice(img_artifact[0][100, :, :], title, path)
+    title = 'ID ' + images.id_ + ' T1w without artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T1w' + '_original.png'
+    save_slice(img[0][100, :, :], title, path)
+    title = 'ID ' + images.id_ + ' T2w with artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T2w' + '_artifact.png'
+    save_slice(img_artifact[1][100, :, :], title, path)
+    title = 'ID ' + images.id_ + ' T2w without artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T2w' + '_original.png'
+    save_slice(img[1][100, :, :], title, path)
+
+    # Transform arrays to sitk images
     T1w = sitk.GetImageFromArray(img_artifact[0])
     T1w.CopyInformation(images.images[structure.BrainImageTypes.T1w])
     images.images[structure.BrainImageTypes.T1w] = T1w
-
     T2w = sitk.GetImageFromArray(img_artifact[1])
     T2w.CopyInformation(images.images[structure.BrainImageTypes.T2w])
     images.images[structure.BrainImageTypes.T2w] = T2w
@@ -93,6 +132,22 @@ def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
 
     return masked_intensities
 
+
+# STUDENT: Save a plot of a 2D slice image
+def save_slice(img: np.array, title: str, path: str):
+    """Saves a plot of a slice.
+
+    Args:
+       img (np.array): The image in 2D
+       title (str): Title
+       path (str): Path for saving
+    """
+    plt.figure()
+    plt.title(title)
+    plt.imshow(img, cmap='gray')
+    plt.axis('off')
+    plt.savefig(path)
+    plt.close()
 
 # STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
