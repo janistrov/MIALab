@@ -36,7 +36,6 @@ def add_artifact(images: structure.BrainImage, artifact_method):
     img = []
     img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T1w]))
     img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T2w]))
-    mask = sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.BrainMask])
 
     img_artifact = []
 
@@ -46,9 +45,8 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     elif artifact_method == 'gaussian noise':
         for i in range(2):
-            std_noise = 2000  # standard deviation of noise with mean 1.0
+            std_noise = 1000  # standard deviation of noise with mean 1.0
             img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
-            img_artifact[i] = np.where(mask == 0, 0, img_artifact[i])
             img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
 
     elif artifact_method == 'zero frequencies':

@@ -65,7 +65,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
                           'normalization_pre': False,
-                          'artifact_pre': False,
+                          'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
@@ -89,7 +89,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # 'gaussian noise':     Gaussian Noise
     # 'zero frequencies':   Randomly selected frequencies are zero-filled
     # 'tumor':              Simulation of Tumor
-    artifact_method = 'zero frequencies'
+    artifact_method = 'gaussian noise'
 
     if not pre_process_params['artifact_pre']:
         artifact_method = 'none'
