@@ -88,15 +88,14 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: choose artifact procedure
     # 'gaussian noise':     Gaussian Noise
     # 'zero frequencies':   Randomly selected frequencies are zero-filled
-    # 'tumor':              Simulation of Tumor
-    artifact_method = 'gaussian noise'
+    artifact_method = 'zero frequencies'
 
     if not pre_process_params['artifact_pre']:
         artifact_method = 'none'
 
     # load images for training and pre-process
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
-                                     artifact_method=artifact_method, multi_process=False)
+                                     artifact_method='none', multi_process=False)
 
     # STUDENT: plots for inspection
     if plot_slice is True:
@@ -138,8 +137,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=10,  # 20
-                                                max_depth=12)  # 25
+                                                n_estimators=20,  # 10
+                                                max_depth=25)  # 12
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)
