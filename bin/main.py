@@ -64,7 +64,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': True,
+                          'normalization_pre': False,
+                          'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
@@ -72,20 +73,30 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # STUDENT: params
     plot_slice = False
-    plot_hist = True
+    plot_hist = False
 
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'fcm'
+    norm_method = 'z'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
 
+    # STUDENT: choose artifact procedure
+    # 'gaussian noise':     Gaussian Noise
+    # 'zero frequencies':   Randomly selected frequencies are zero-filled
+    # 'tumor':              Simulation of Tumor
+    artifact_method = 'gaussian noise'
+
+    if not pre_process_params['artifact_pre']:
+        artifact_method = 'none'
+
     # load images for training and pre-process
-    images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method, multi_process=False)
+    images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
+                                     artifact_method=artifact_method, multi_process=False)
 
     # STUDENT: plots for inspection
     if plot_slice is True:
@@ -93,7 +104,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     if plot_hist is True:
         intensities_T1w, intensities_T2w = [], []
-        nr_samples = 7
+        nr_samples = 3
         for i in range(nr_samples):
             intensities_T1w.append(putil.get_masked_intensities(images[i].images[structure.BrainImageTypes.T1w],
                                    images[i].images[structure.BrainImageTypes.BrainMask]))
@@ -108,11 +119,9 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
             plt.figure(i+1)
             plt.xlabel('Intensity')
             plt.ylabel('PDF')
-            plt.title('Density of intensity with ' + norm_method + ' normalization method')
+            plt.title('Intensity density with ' + norm_method + ' normalization method')
             plt.savefig('./mia-result/plots/Result_Hist_norm-' + norm_method + '_T' + str(i+1) + 'w.png')
             plt.close()
-
-
 
     # STUDENT: save preprocessed images for visual inspection
     for i, img in enumerate(images):
@@ -129,8 +138,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=8,
-                                                max_depth=10)
+                                                n_estimators=10,  # 20
+                                                max_depth=12)  # 25
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)
@@ -155,7 +164,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # load images for testing and pre-process
     pre_process_params['training'] = False
     images_test = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
-                                          multi_process=False)
+                                          artifact_method=artifact_method, multi_process=False)
 
     images_prediction = []
     images_probabilities = []

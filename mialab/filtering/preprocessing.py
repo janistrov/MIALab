@@ -47,8 +47,8 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         if self.norm_method == 'z':
             print('Normalization method: Z-Score')
-            mean = img_arr.mean()
-            std = img_arr.std()
+            mean = img_arr[self.mask == 1].mean()
+            std = img_arr[self.mask == 1].std()
             img_arr = (img_arr - mean) / std
 
         elif self.norm_method == 'ws':
@@ -67,9 +67,9 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         elif self.norm_method == 'hm':
             print('Normalization method: Histogram Matching')
-            self.plot_hist(img_arr)
+            # self.save_hist(img_arr)
             img_arr = self.do_hist_norm(img_arr)
-            self.plot_hist(img_arr, normalized=True)
+            # self.save_hist(img_arr, normalized=True)
 
         elif self.norm_method == 'fcm':
             print('Normalization method: FCM White Matter Aligning')
@@ -221,7 +221,7 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         return normed
 
-    def plot_hist(self, image, normalized=False):
+    def save_hist(self, image, normalized=False):
         """
         Makes a intensity histogram and saves it
 

@@ -12,6 +12,7 @@ import pymia.evaluation.evaluator as eval_
 import pymia.evaluation.metric as metric
 import SimpleITK as sitk
 from scipy.interpolate import interp1d
+from random import sample
 import statsmodels.api as sm
 
 import mialab.data.structure as structure
@@ -24,7 +25,98 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
-# STUDENT: Plot smooth histogram for inspection
+# STUDENT: Add artifact to images
+def add_artifact(images: structure.BrainImage, artifact_method):
+    """Adds artifacts to images.
+
+    Args:
+        images (structure.BrainImage): The images
+        artifact_method (str): Artifact Method
+    """
+    img = []
+    img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T1w]))
+    img.append(sitk.GetArrayFromImage(images.images[structure.BrainImageTypes.T2w]))
+
+    img_artifact = []
+
+    if artifact_method == 'none':
+        for i in range(2):
+            img_artifact.append(img[i])
+
+    elif artifact_method == 'gaussian noise':
+        for i in range(2):
+            std_noise = 1000  # standard deviation of noise with mean 1.0
+            img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
+            img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
+
+    elif artifact_method == 'zero frequencies':
+        for i in range(2):
+            # parameters
+            nbr_freq = 3  # number of frequency bands to zero
+            band_length = 5  # length of frequency bands to zero
+
+            # Fourier transform
+            img_fft = np.fft.fftn(img[i])
+            fshift = np.fft.fftshift(img_fft)
+
+            # Setting random frequencies to zero
+            idx_zero = np.zeros([3, nbr_freq*band_length])
+            for n in range(3):  # for every dimension
+                # Excluding the middle part (middle +/- 15 voxels) with the low frequencies
+                left = np.arange(0, int(fshift.shape[n]/2) - 15 - band_length)
+                right = np.arange(int(fshift.shape[n]/2) + 15, fshift.shape[n] - band_length)
+                idx_list = list(np.concatenate((left, right)))
+                # take random sample from index list
+                rand_idx = sample(idx_list, nbr_freq)
+                for f in range(nbr_freq):
+                    idx_zero[n, f*band_length:(f+1)*band_length] = np.arange(rand_idx[f], rand_idx[f] + band_length)
+
+            fshift[idx_zero[0].astype(int), :, :] = 0
+            fshift[:, idx_zero[1].astype(int), :] = 0
+            fshift[:, :, idx_zero[2].astype(int)] = 0
+
+            # Make plots of spectrum for visual inspection
+            magnitude_spectrum = np.where(np.abs(fshift) > 0, 20 * np.log(np.abs(fshift)),  0)
+            title = 'Magnitude Spectrum of ' + images.id_ + ' T' + str(i+1) + 'w'
+            path = './mia-result/plots/artifacts/' + images.id_ + '_spectrum' + '_T' + str(i+1) + 'w.png'
+            save_slice(magnitude_spectrum[100, :, :], title, path)
+
+            # Inverse fourier transform
+            f_ishift = np.fft.ifftshift(fshift)
+            img_back = np.fft.ifftn(f_ishift)
+
+            img_artifact.append(np.abs(img_back))
+
+    elif artifact_method == 'tumor':
+        for i in range(2):
+            print('artifact method not implemented yet')
+            # todo
+            img_artifact.append(img[i])
+
+    # Make plots of images with artefacts for visual inspection
+    title = 'ID ' + images.id_ + ' T1w with artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T1w' + '_artifact.png'
+    save_slice(img_artifact[0][100, :, :], title, path)
+    title = 'ID ' + images.id_ + ' T1w without artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T1w' + '_original.png'
+    save_slice(img[0][100, :, :], title, path)
+    title = 'ID ' + images.id_ + ' T2w with artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T2w' + '_artifact.png'
+    save_slice(img_artifact[1][100, :, :], title, path)
+    title = 'ID ' + images.id_ + ' T2w without artifact'
+    path = './mia-result/plots/artifacts/' + images.id_ + '_T2w' + '_original.png'
+    save_slice(img[1][100, :, :], title, path)
+
+    # Transform arrays to sitk images
+    T1w = sitk.GetImageFromArray(img_artifact[0])
+    T1w.CopyInformation(images.images[structure.BrainImageTypes.T1w])
+    images.images[structure.BrainImageTypes.T1w] = T1w
+    T2w = sitk.GetImageFromArray(img_artifact[1])
+    T2w.CopyInformation(images.images[structure.BrainImageTypes.T2w])
+    images.images[structure.BrainImageTypes.T2w] = T2w
+
+
+# STUDENT: Plot smooth histogram for inspection2
 def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
     """Plots a slice of an image.
 
@@ -37,6 +129,23 @@ def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
     masked_intensities = img_arr[msk_arr == 1]
 
     return masked_intensities
+
+
+# STUDENT: Save a plot of a 2D slice image
+def save_slice(img: np.array, title: str, path: str):
+    """Saves a plot of a slice.
+
+    Args:
+       img (np.array): The image in 2D
+       title (str): Title
+       path (str): Path for saving
+    """
+    plt.figure()
+    plt.title(title)
+    plt.imshow(img, cmap='gray')
+    plt.axis('off')
+    plt.savefig(path)
+    plt.close()
 
 # STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
@@ -80,18 +189,15 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
         T1w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T1w])
         T2w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T2w])
         mask = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.BrainMask])
-
         # get landmarks
         T1w_masked, T2w_masked = T1w[(mask == 1)], T2w[(mask == 1)]
         T1w_landmarks, T2w_landmarks = np.percentile(T1w_masked, percs), np.percentile(T2w_masked, percs)
-
         # interpolate ends
         T1w_min_p, T2w_min_p = np.percentile(T1w_masked, i_min), np.percentile(T2w_masked, i_min)
         T1w_max_p, T2w_max_p = np.percentile(T1w_masked, i_max), np.percentile(T2w_masked, i_max)
         T1w_f = interp1d([T1w_min_p, T1w_max_p], [i_s_min, i_s_max])
         T2w_f = interp1d([T2w_min_p, T2w_max_p], [i_s_min, i_s_max])
         T1w_landmarks, T2w_landmarks = np.array(T1w_f(T1w_landmarks)), np.array(T2w_f(T2w_landmarks))
-
         # get standart scale
         T1w_standard_scale += T1w_landmarks
         T2w_standard_scale += T2w_landmarks
@@ -102,7 +208,7 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
     return (T1w_standard_scale, T2w_standard_scale), percs
 
 
-# STUDENT: Load images to get standart scale histogram
+# STUDENT: Load images to get standard scale histogram
 def hm_load_images(id_: str, paths: dict) -> structure.BrainImage:
     """Loads an image
 
@@ -263,8 +369,8 @@ class FeatureExtractor:
         return image.reshape((no_voxels, number_of_components))
 
 
-def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales: tuple = None, percs: np.array = None,
-                **kwargs) -> structure.BrainImage:
+def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method: str = 'none',
+                standard_scales: tuple = None, percs: np.array = None, **kwargs) -> structure.BrainImage:
     """Loads and processes an image.
 
     The processing includes:
@@ -278,6 +384,7 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
         paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
             and the values are paths to the images.
         norm_method (str): Normalization method
+        artifact_method (str): Artifact method
         standard_scales (tuple): Standard scaling for histogram matching normalization for T1w and T2w images
         percs (np.array): Percentiles for histogram matching
 
@@ -293,6 +400,11 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
     img = {img_key: sitk.ReadImage(path) for img_key, path in paths.items()}
     transform = sitk.ReadTransform(path_to_transform)
     img = structure.BrainImage(id_, path, img, transform)
+
+    print('artifact method: ' + artifact_method)
+    if kwargs.get('artifact_pre', False):
+        add_artifact(img, artifact_method)
+
 
     # construct pipeline for brain mask registration
     # we need to perform this before the T1w and T2w pipeline because the registered mask is used for skull-stripping
@@ -329,7 +441,7 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', standard_scales:
     img.images[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img.images[structure.BrainImageTypes.T1w])
 
     # construct pipeline for T2w image pre-processing
-    pipeline_t2 = fltr.FilterPipeline()
+    pipeline_t2 = fltr.FilterPipeline() #  artifacts lead to wrong registration. why??
     if kwargs.get('registration_pre', False):
         pipeline_t2.add_filter(fltr_prep.ImageRegistration())
         pipeline_t2.set_param(fltr_prep.ImageRegistrationParameters(atlas_t2, img.transformation),
@@ -428,8 +540,8 @@ def init_evaluator(directory: str, result_file_name: str = 'results.csv') -> eva
 
 
 def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.BrainImage],
-                      pre_process_params: dict = None, norm_method: str = 'no', multi_process=True) -> t.List[
-    structure.BrainImage]:
+                      pre_process_params: dict = None, norm_method: str = 'no', artifact_method: str = 'none',
+                      multi_process=True) -> t.List[structure.BrainImage]:
     """Loads and pre-processes a batch of images.
 
     The pre-processing includes:
@@ -443,6 +555,7 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
         pre_process_params (dict): Pre-processing parameters.
         multi_process (bool): Whether to use the parallel processing on multiple cores or to run sequentially.
         norm_method (str): Normalization method
+        artifact_method (str): Artifact method
 
     Returns:
         List[structure.BrainImage]: A list of images.
@@ -461,8 +574,8 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
             images = [pre_process(id_, path, norm_method=norm_method, standard_scales=standard_scales, percs=percs,
                                   **pre_process_params) for id_, path in params_list]
         else:
-            images = [pre_process(id_, path, norm_method=norm_method, **pre_process_params) for id_, path in
-                      params_list]
+            images = [pre_process(id_, path, norm_method=norm_method, artifact_method=artifact_method,
+                      **pre_process_params) for id_, path in params_list]
 
     return images
 
