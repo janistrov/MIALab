@@ -93,7 +93,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     if plot_hist is True:
         intensities_T1w, intensities_T2w = [], []
-        nr_samples = 3
+        nr_samples = 7
         for i in range(nr_samples):
             intensities_T1w.append(putil.get_masked_intensities(images[i].images[structure.BrainImageTypes.T1w],
                                    images[i].images[structure.BrainImageTypes.BrainMask]))
@@ -108,7 +108,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
             plt.figure(i+1)
             plt.xlabel('Intensity')
             plt.ylabel('PDF')
-            plt.title('Intensity density with ' + norm_method + ' normalization method')
+            plt.title('Density of intensity with ' + norm_method + ' normalization method')
             plt.savefig('./mia-result/plots/Result_Hist_norm-' + norm_method + '_T' + str(i+1) + 'w.png')
             plt.close()
 
@@ -129,8 +129,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=20,
-                                                max_depth=25)
+                                                n_estimators=8,
+                                                max_depth=10)
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)
