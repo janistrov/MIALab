@@ -64,7 +64,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': False,
+                          'normalization_pre': True,
                           'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
@@ -96,7 +96,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # load images for training and pre-process
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
-                                     artifact_method=artifact_method, multi_process=False)
+                                     artifact_method='none', multi_process=False)
 
     # STUDENT: plots for inspection
     if plot_slice is True:
@@ -138,8 +138,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=10,  # 20
-                                                max_depth=12)  # 25
+                                                n_estimators=20,  # 20
+                                                max_depth=25)  # 25
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)

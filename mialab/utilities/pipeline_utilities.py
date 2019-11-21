@@ -402,9 +402,8 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method:
     img = structure.BrainImage(id_, path, img, transform)
 
     print('artifact method: ' + artifact_method)
-    if kwargs.get('artifact_pre', False):
+    if artifact_method is not 'none':
         add_artifact(img, artifact_method)
-
 
     # construct pipeline for brain mask registration
     # we need to perform this before the T1w and T2w pipeline because the registered mask is used for skull-stripping
