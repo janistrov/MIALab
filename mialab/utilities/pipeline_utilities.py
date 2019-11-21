@@ -26,6 +26,24 @@ atlas_t2 = sitk.Image()
 
 
 # STUDENT: evaluate features
+def feature_evaluator(features, ground_truth):
+    """Adds artifacts to images.
+
+    Args:
+       features (structure.feature_images): The feature images
+       ground_truth (structure.BrainImage): Ground truth
+    """
+    ground_truth = sitk.GetArrayFromImage(ground_truth)
+    intensities = [sitk.GetArrayFromImage(features[FeatureImageTypes.T1w_INTENSITY]),
+                   sitk.GetArrayFromImage(features[FeatureImageTypes.T2w_INTENSITY])]
+
+    mean_intensities = np.zeros((2, int(np.max(ground_truth))))
+    std_intensities = np.zeros((2, int(np.max(ground_truth))))
+    for w in range(2):  # for different weights T1w and T2w
+        for i in range(int(np.max(ground_truth))):  # for different regions
+            mean_intensities[w, i] = np.mean(intensities[w][ground_truth == i])
+            std_intensities[w, i] = np.std(intensities[w][ground_truth == i])
+    print('hallo')
 
 # STUDENT: Add artifact to images
 def add_artifact(images: structure.BrainImage, artifact_method):
@@ -84,6 +102,10 @@ def add_artifact(images: structure.BrainImage, artifact_method):
             img_back = np.fft.ifftn(f_ishift)
 
             img_artifact.append(np.abs(img_back))
+    else:
+        print('Artifact method not known. Proceeding without artifacts.')
+        for i in range(2):
+            img_artifact.append(img[i])
 
     # Make plots of images with artefacts for visual inspection
     title = 'ID ' + images.id_ + ' T1w with artifact'
@@ -472,20 +494,23 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method:
     img = feature_extractor.execute()
 
     # STUDENT: save feature images for evaluation
-    title = 'ID ' + img.id_ + ' Ground Truth'
-    path = './mia-result/plots/features/' + img.id_ + '_ground_truth.png'
-    save_slice(sitk.GetArrayFromImage(img.images[structure.BrainImageTypes.GroundTruth])[80, :, :], title, path)
-    for i in range(2):
-        title = 'ID ' + img.id_ + ' T' + str(i+1) + 'w Intensity Feature'
-        path = './mia-result/plots/features/' + img.id_ + '_T' + str(i+1) + 'w_intensity.png'
-        code_str = 'save_slice(sitk.GetArrayFromImage(img.feature_images[FeatureImageTypes.T'\
-                   + str(i+1) + 'w_INTENSITY])[80, :, :], title, path)'
-        exec(code_str)
-        title = 'ID ' + img.id_ + ' T' + str(i+1) + 'w Gradient Feature'
-        path = './mia-result/plots/features/' + img.id_ + '_T' + str(i + 1) + 'w_gradient.png'
-        code_str = 'save_slice(sitk.GetArrayFromImage(img.feature_images[FeatureImageTypes.T' \
-                   + str(i + 1) + 'w_GRADIENT_INTENSITY])[80, :, :], title, path)'
-        exec(code_str)
+    if artifact_method is not 'none':
+        title = 'ID ' + img.id_ + ' Ground Truth'
+        path = './mia-result/plots/features/' + img.id_ + '_ground_truth.png'
+        save_slice(sitk.GetArrayFromImage(img.images[structure.BrainImageTypes.GroundTruth])[80, :, :], title, path)
+        for i in range(2):
+            title = 'ID ' + img.id_ + ' T' + str(i+1) + 'w Intensity Feature'
+            path = './mia-result/plots/features/' + img.id_ + '_T' + str(i+1) + 'w_intensity.png'
+            code_str = 'save_slice(sitk.GetArrayFromImage(img.feature_images[FeatureImageTypes.T'\
+                       + str(i+1) + 'w_INTENSITY])[80, :, :], title, path)'
+            exec(code_str)
+            title = 'ID ' + img.id_ + ' T' + str(i+1) + 'w Gradient Feature'
+            path = './mia-result/plots/features/' + img.id_ + '_T' + str(i + 1) + 'w_gradient.png'
+            code_str = 'save_slice(sitk.GetArrayFromImage(img.feature_images[FeatureImageTypes.T' \
+                       + str(i + 1) + 'w_GRADIENT_INTENSITY])[80, :, :], title, path)'
+            exec(code_str)
+
+    feature_evaluator(img.feature_images, img.images[structure.BrainImageTypes.GroundTruth])
 
     img.feature_images = {}  # we free up memory because we only need the img.feature_matrix
     # for training of the classifier

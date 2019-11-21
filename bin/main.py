@@ -64,7 +64,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': False,
+                          'normalization_pre': True,
                           'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
@@ -80,7 +80,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'z'
+    norm_method = 'ws'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -95,7 +95,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # load images for training and pre-process
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
-                                     artifact_method='none', multi_process=False)
+                                     artifact_method=artifact_method, multi_process=False)
 
     # STUDENT: plots for inspection
     if plot_slice is True:

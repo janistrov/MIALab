@@ -47,8 +47,9 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         if self.norm_method == 'z':
             print('Normalization method: Z-Score')
-            mean = img_arr[self.mask == 1].mean()
-            std = img_arr[self.mask == 1].std()
+            mask = sitk.GetArrayFromImage(self.mask)
+            mean = img_arr[mask == 1].mean()
+            std = img_arr[mask == 1].std()
             img_arr = (img_arr - mean) / std
 
         elif self.norm_method == 'ws':
