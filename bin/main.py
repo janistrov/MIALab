@@ -64,7 +64,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': True,
+                          'normalization_pre': False,
                           'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
@@ -88,8 +88,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: choose artifact procedure
     # 'gaussian noise':     Gaussian Noise
     # 'zero frequencies':   Randomly selected frequencies are zero-filled
-    # 'tumor':              Simulation of Tumor
-    artifact_method = 'gaussian noise'
+    artifact_method = 'zero frequencies'
 
     if not pre_process_params['artifact_pre']:
         artifact_method = 'none'
@@ -138,8 +137,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=20,  # 20
-                                                max_depth=25)  # 25
+                                                n_estimators=20,  # 10
+                                                max_depth=25)  # 12
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)

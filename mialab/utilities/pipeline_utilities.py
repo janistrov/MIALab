@@ -25,6 +25,8 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
+# STUDENT: evaluate features
+
 # STUDENT: Add artifact to images
 def add_artifact(images: structure.BrainImage, artifact_method):
     """Adds artifacts to images.
@@ -39,11 +41,7 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     img_artifact = []
 
-    if artifact_method == 'none':
-        for i in range(2):
-            img_artifact.append(img[i])
-
-    elif artifact_method == 'gaussian noise':
+    if artifact_method == 'gaussian noise':
         for i in range(2):
             std_noise = 1000  # standard deviation of noise with mean 1.0
             img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
@@ -86,12 +84,6 @@ def add_artifact(images: structure.BrainImage, artifact_method):
             img_back = np.fft.ifftn(f_ishift)
 
             img_artifact.append(np.abs(img_back))
-
-    elif artifact_method == 'tumor':
-        for i in range(2):
-            print('artifact method not implemented yet')
-            # todo
-            img_artifact.append(img[i])
 
     # Make plots of images with artefacts for visual inspection
     title = 'ID ' + images.id_ + ' T1w with artifact'
@@ -478,6 +470,22 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method:
     # extract the features
     feature_extractor = FeatureExtractor(img, **kwargs)
     img = feature_extractor.execute()
+
+    # STUDENT: save feature images for evaluation
+    title = 'ID ' + img.id_ + ' Ground Truth'
+    path = './mia-result/plots/features/' + img.id_ + '_ground_truth.png'
+    save_slice(sitk.GetArrayFromImage(img.images[structure.BrainImageTypes.GroundTruth])[80, :, :], title, path)
+    for i in range(2):
+        title = 'ID ' + img.id_ + ' T' + str(i+1) + 'w Intensity Feature'
+        path = './mia-result/plots/features/' + img.id_ + '_T' + str(i+1) + 'w_intensity.png'
+        code_str = 'save_slice(sitk.GetArrayFromImage(img.feature_images[FeatureImageTypes.T'\
+                   + str(i+1) + 'w_INTENSITY])[80, :, :], title, path)'
+        exec(code_str)
+        title = 'ID ' + img.id_ + ' T' + str(i+1) + 'w Gradient Feature'
+        path = './mia-result/plots/features/' + img.id_ + '_T' + str(i + 1) + 'w_gradient.png'
+        code_str = 'save_slice(sitk.GetArrayFromImage(img.feature_images[FeatureImageTypes.T' \
+                   + str(i + 1) + 'w_GRADIENT_INTENSITY])[80, :, :], title, path)'
+        exec(code_str)
 
     img.feature_images = {}  # we free up memory because we only need the img.feature_matrix
     # for training of the classifier
