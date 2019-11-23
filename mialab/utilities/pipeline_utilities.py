@@ -14,6 +14,7 @@ import SimpleITK as sitk
 from scipy.interpolate import interp1d
 from random import sample
 import statsmodels.api as sm
+import seaborn as sns
 
 import mialab.data.structure as structure
 import mialab.filtering.feature_extraction as fltr_feat
@@ -25,25 +26,59 @@ atlas_t1 = sitk.Image()
 atlas_t2 = sitk.Image()
 
 
+# STUDENT: Get mean features for evaluation at feature level
+def init_global_variable():
+    # One entry per patient, first row: T1w, second row: T2w, one column per ground truth region
+    global feature_mean_intensities
+    global feature_std_intensities
+    feature_mean_intensities = []
+    feature_std_intensities = []
+
+
 # STUDENT: evaluate features
-def feature_evaluator(features, ground_truth):
+def feature_evaluator(features, ground_truth, id):
     """Adds artifacts to images.
 
     Args:
        features (structure.feature_images): The feature images
        ground_truth (structure.BrainImage): Ground truth
+       id (str): Patient ID
     """
     ground_truth = sitk.GetArrayFromImage(ground_truth)
     intensities = [sitk.GetArrayFromImage(features[FeatureImageTypes.T1w_INTENSITY]),
                    sitk.GetArrayFromImage(features[FeatureImageTypes.T2w_INTENSITY])]
 
+    labels = ['Background', 'White matter', 'Grey matter', 'Hippocampus', 'Amygdala', 'Thalamus']
     mean_intensities = np.zeros((2, int(np.max(ground_truth))))
     std_intensities = np.zeros((2, int(np.max(ground_truth))))
     for w in range(2):  # for different weights T1w and T2w
-        for i in range(int(np.max(ground_truth))):  # for different regions
-            mean_intensities[w, i] = np.mean(intensities[w][ground_truth == i])
-            std_intensities[w, i] = np.std(intensities[w][ground_truth == i])
-    print('hallo')
+        for i in range(1, int(np.max(ground_truth))+1):  # for different regions
+            mean_intensities[w, i-1] = np.mean(intensities[w][ground_truth == i])
+            std_intensities[w, i-1] = np.std(intensities[w][ground_truth == i])
+            if w == 0:
+                plt.figure(1)
+                sns.kdeplot(intensities[w][ground_truth == i], Label=labels[i])
+            else:
+                plt.figure(2)
+                sns.kdeplot(intensities[w][ground_truth == i], Label=labels[i])
+    plt.figure(1)
+    plt.xlabel('Intensity')
+    plt.ylabel('PDF')
+    plt.legend()
+    plt.title('Density of intensity per region')
+    plt.savefig('./mia-result/plots/features/intensity_density_T1w_' + id + '.png')
+    plt.close(1)
+    plt.figure(2)
+    plt.xlabel('Intensity')
+    plt.ylabel('PDF')
+    plt.legend()
+    plt.title('Density of intensity per region')
+    plt.savefig('./mia-result/plots/features/intensity_density_T2w_' + id + '.png')
+    plt.close(2)
+    # save values to global list
+    feature_mean_intensities.append(mean_intensities)
+    feature_std_intensities.append(std_intensities)
+
 
 # STUDENT: Add artifact to images
 def add_artifact(images: structure.BrainImage, artifact_method):
@@ -61,15 +96,15 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     if artifact_method == 'gaussian noise':
         for i in range(2):
-            std_noise = 1000  # standard deviation of noise with mean 1.0
+            std_noise = 1500  # standard deviation of noise with mean 1.0
             img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
             img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
 
     elif artifact_method == 'zero frequencies':
         for i in range(2):
             # parameters
-            nbr_freq = 3  # number of frequency bands to zero
-            band_length = 5  # length of frequency bands to zero
+            nbr_freq = 4  # number of frequency bands to zero
+            band_length = 4  # length of frequency bands to zero
 
             # Fourier transform
             img_fft = np.fft.fftn(img[i])
@@ -510,7 +545,7 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method:
                        + str(i + 1) + 'w_GRADIENT_INTENSITY])[80, :, :], title, path)'
             exec(code_str)
 
-    feature_evaluator(img.feature_images, img.images[structure.BrainImageTypes.GroundTruth])
+    feature_evaluator(img.feature_images, img.images[structure.BrainImageTypes.GroundTruth], img.id_)
 
     img.feature_images = {}  # we free up memory because we only need the img.feature_matrix
     # for training of the classifier

@@ -75,6 +75,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     plot_slice = False
     plot_hist = False
 
+    putil.init_global_variable()
+
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
@@ -95,7 +97,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # load images for training and pre-process
     images = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
-                                     artifact_method=artifact_method, multi_process=False)
+                                     artifact_method='none', multi_process=False)
 
     # STUDENT: plots for inspection
     if plot_slice is True:
@@ -128,6 +130,24 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
         save_to_t2w = os.path.join('./mia-result/norm images/', norm_method + '-norm_' + images[i].id_ + '_T2w.nii.gz')
         sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t1w)
         sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t2w)
+
+    # STUDENT: print intensity means of feature images
+    mean = np.sum(putil.feature_mean_intensities, axis=0)/len(putil.feature_mean_intensities)
+    std = np.sum(putil.feature_std_intensities, axis=0) / len(putil.feature_std_intensities)
+    labels = ['White matter:', 'Grey matter:', 'Hippocampus:', 'Amygdala:   ', 'Thalamus:   ']
+    weighting = ['T1w', 'T2w']
+    print('\n----- Mean feature intensities in training -----')
+    for w in range(2):
+        print(weighting[w])
+        for i in range(5):
+            print(labels[i] + '\t' + str(mean[w, i]))
+    print('\n----- Mean std of feature intensities in training -----')
+    for w in range(2):
+        print(weighting[w])
+        for i in range(5):
+            print(labels[i] + '\t' + str(std[w, i]))
+    print('\n')
+    putil.init_global_variable()
 
     # generate feature matrix and label vector
     data_train = np.concatenate([img.feature_matrix[0] for img in images])
@@ -164,6 +184,23 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     pre_process_params['training'] = False
     images_test = putil.pre_process_batch(crawler.data, pre_process_params, norm_method=norm_method,
                                           artifact_method=artifact_method, multi_process=False)
+
+    # STUDENT: print intensity means of feature images
+    mean = np.sum(putil.feature_mean_intensities, axis=0) / len(putil.feature_mean_intensities)
+    std = np.sum(putil.feature_std_intensities, axis=0) / len(putil.feature_std_intensities)
+    labels = ['White matter:', 'Grey matter:', 'Hippocampus:', 'Amygdala:   ', 'Thalamus:   ']
+    weighting = ['T1w', 'T2w']
+    print('\n----- Mean feature intensities in testing -----')
+    for w in range(2):
+        print(weighting[w])
+        for i in range(5):
+            print(labels[i] + '\t' + str(mean[w, i]))
+    print('\n----- Mean std of feature intensities in testing -----')
+    for w in range(2):
+        print(weighting[w])
+        for i in range(5):
+            print(labels[i] + '\t' + str(std[w, i]))
+    print('\n')
 
     images_prediction = []
     images_probabilities = []
