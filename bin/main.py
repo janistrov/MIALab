@@ -65,24 +65,26 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
                           'normalization_pre': True,
-                          'artifact_pre': True,
+                          'artifact_pre': False,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
 
+    putil.init_global_variable()
+
     # STUDENT: params
     plot_slice = False
     plot_hist = False
+    putil.evaluate_BraTS = False
 
-    putil.init_global_variable()
 
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'ws'
+    norm_method = 'hm'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'

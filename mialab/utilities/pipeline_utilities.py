@@ -31,8 +31,10 @@ def init_global_variable():
     # One entry per patient, first row: T1w, second row: T2w, one column per ground truth region
     global feature_mean_intensities
     global feature_std_intensities
+    global evaluate_BraTS
     feature_mean_intensities = []
     feature_std_intensities = []
+    evaluate_BraTS = False
 
 
 # STUDENT: evaluate features
@@ -235,9 +237,14 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
 
     for i, image in enumerate(imgs):
         # get images as arrays
-        T1w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T1w])
-        T2w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T2w])
-        mask = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.BrainMask])
+        if evaluate_BraTS is True:
+            T1w = sitk.GetArrayFromImage(image[structure.BrainImageTypes.T1w])
+            T2w = sitk.GetArrayFromImage(image[structure.BrainImageTypes.T2w])
+            mask = sitk.GetArrayFromImage(image[structure.BrainImageTypes.BrainMask])
+        else:
+            T1w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T1w])
+            T2w = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.T2w])
+            mask = sitk.GetArrayFromImage(image.images[structure.BrainImageTypes.BrainMask])
         # get landmarks
         T1w_masked, T2w_masked = T1w[(mask == 1)], T2w[(mask == 1)]
         T1w_landmarks, T2w_landmarks = np.percentile(T1w_masked, percs), np.percentile(T2w_masked, percs)
@@ -277,6 +284,118 @@ def hm_load_images(id_: str, paths: dict) -> structure.BrainImage:
     img = structure.BrainImage(id_, path, img, transform)
 
     return img
+
+
+# STUDENT: Load images from BraTS tumor data set
+def BraTS_load_images(id_: str, paths: dict):
+    """Loads an image
+
+    Args:
+        id_ (str): An image identifier.
+        paths (dict): A dict, where the keys are an image identifier of type structure.BrainImageTypes
+            and the values are paths to the images.
+
+    Returns:
+        brain images (dict):
+    """
+    paths_temp = paths.copy()
+    path = paths_temp.pop(id_, '')
+    _ = paths_temp.pop(structure.BrainImageTypes.RegistrationTransform, '') # not considered
+    # modify paths_temp for BraTS
+    del paths_temp[structure.BrainImageTypes.BrainMask]
+    paths_temp[structure.BrainImageTypes.T1w] = paths_temp[structure.BrainImageTypes.T1w][0:-15] + id_ + '_t1.nii.gz'
+    paths_temp[structure.BrainImageTypes.T2w] = paths_temp[structure.BrainImageTypes.T2w][0:-15] + id_ + '_t2.nii.gz'
+    paths_temp[structure.BrainImageTypes.GroundTruth] = paths_temp[structure.BrainImageTypes.GroundTruth][0:-20] + \
+                                                        id_ + '_seg.nii.gz'
+
+    img = {'id_': id_}
+    for img_key, path in paths_temp.items():
+        img[img_key] = sitk.ReadImage(path)
+
+    # create mask
+    image = sitk.GetArrayFromImage(img[structure.BrainImageTypes.T1w])
+    mask = np.ones(image.shape)
+    mask[image == 0] = 0
+    img[structure.BrainImageTypes.BrainMask] = sitk.GetImageFromArray(mask)
+
+    return img
+
+
+# STUDENT: Evaluate BraTS tumor data set
+def BraTS_eval(imgs: list, norm_method, standard_scales=None, percs=None):
+    """Evaluate BraTS tumor data set
+
+    Args:
+        imgs (list): The images in a structure
+    """
+    # Normalization step
+    if standard_scales is None:
+        for img in imgs:
+            pipeline_t1 = fltr.FilterPipeline()
+            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T1w', norm_method,
+                                                                mask=img[structure.BrainImageTypes.BrainMask]))
+            img[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img[structure.BrainImageTypes.T1w])
+
+        for img in imgs:
+            pipeline_t2 = fltr.FilterPipeline()
+            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T2w', norm_method,
+                                                                mask=img[structure.BrainImageTypes.BrainMask]))
+            img[structure.BrainImageTypes.T2w] = pipeline_t2.execute(img[structure.BrainImageTypes.T2w])
+    else:
+        for img in imgs:
+            pipeline_t1 = fltr.FilterPipeline()
+            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T1w', norm_method,
+                                                                standard_scales[0], percs,
+                                                                mask=img[structure.BrainImageTypes.BrainMask]))
+            img[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img[structure.BrainImageTypes.T1w])
+
+        for img in imgs:
+            pipeline_t2 = fltr.FilterPipeline()
+            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T2w', norm_method,
+                                                                standard_scales[1], percs,
+                                                                mask=img[structure.BrainImageTypes.BrainMask]))
+            img[structure.BrainImageTypes.T2w] = pipeline_t2.execute(img[structure.BrainImageTypes.T2w])
+
+    # Plot histogram for evaluation
+    labels = ['Whole Brain', 'Tumor']
+    for img in imgs:
+        img_t1 = sitk.GetArrayFromImage(img[structure.BrainImageTypes.T1w])
+        img_t2 = sitk.GetArrayFromImage(img[structure.BrainImageTypes.T2w])
+        img_gt = sitk.GetArrayFromImage(img[structure.BrainImageTypes.GroundTruth])
+        img_gt[img_gt == 3] = 0  # only look at labels 1 an 4 (inner part of tumor)
+        img_gt[img_gt == 4] = 1
+
+        plt.figure()
+        ax1 = plt.subplot(111)
+        ax1.tick_params(axis='y', colors='blue')
+        sns.kdeplot(np.ravel(img_t1), Label=labels[0], color='blue')
+        plt.xlabel('Intensity')
+        plt.ylabel('PDF')
+        plt.legend(loc='upper left')
+        ax2 = plt.twinx()
+        ax2.tick_params(axis='y', colors='red')
+        sns.kdeplot(np.ravel(img_t1[img_gt == 1]), Label=labels[1], ax=ax2, color='red')
+        plt.ylabel('PDF')
+        plt.legend(loc='upper right')
+        plt.savefig('./mia-result/plots/features/tumor_T1w_' + img['id_'] + '.png')
+        plt.close()
+
+        plt.figure()
+        ax1 = plt.subplot(111)
+        ax1.tick_params(axis='y', colors='blue')
+        sns.kdeplot(np.ravel(img_t2), Label=labels[0], color='blue')
+        plt.xlabel('Intensity')
+        plt.ylabel('PDF')
+        plt.legend(loc='upper left')
+        ax2 = plt.twinx()
+        ax2.tick_params(axis='y', colors='red')
+        sns.kdeplot(np.ravel(img_t2[img_gt == 1]), Label=labels[1], ax=ax2, color='red')
+        plt.ylabel('PDF')
+        plt.legend(loc='upper right')
+        plt.savefig('./mia-result/plots/features/tumor_T2w_' + img['id_'] + '.png')
+        plt.close()
+
+
 
 
 def load_atlas_images(directory: str):
@@ -631,6 +750,17 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
         pre_process_params = {}
 
     params_list = list(data_batch.items())
+
+    # STUDENT: code part for BraTS data set
+    if evaluate_BraTS is True:
+        brats = [BraTS_load_images(id_, path) for id_, path in params_list]
+        if norm_method is 'hm':
+            standard_scales, percs = hist_to_match(brats)
+            BraTS_eval(brats, norm_method=norm_method, standard_scales=standard_scales, percs=percs)
+        else:
+            BraTS_eval(brats, norm_method=norm_method)
+        break_point = 1
+
     if multi_process:
         images = mproc.MultiProcessor.run(pre_process, params_list, pre_process_params, mproc.PreProcessingPickleHelper)
     else:

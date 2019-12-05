@@ -25,9 +25,9 @@ class ImageNormalization(pymia_fltr.IFilter):
         self.id_ = id_
         self.T_ = T_
         self.norm_method = norm_method
+        self.mask = mask
         # histogram matching
         self.standard_scale = standard_scale
-        self.mask = mask
         self.percs = percs
 
     def execute(self, image: sitk.Image, params: pymia_fltr.IFilterParams = None) -> sitk.Image:
