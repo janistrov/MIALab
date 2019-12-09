@@ -65,7 +65,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
                           'normalization_pre': True,
-                          'artifact_pre': False,
+                          'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
@@ -76,15 +76,14 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: params
     plot_slice = False
     plot_hist = False
-    putil.evaluate_BraTS = False
-
+    putil.evaluate_BraTS = False  # only part of pipeline runnable if 'True'
 
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'hm'
+    norm_method = 'z'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -92,7 +91,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: choose artifact procedure
     # 'gaussian noise':     Gaussian Noise
     # 'zero frequencies':   Randomly selected frequencies are zero-filled
-    artifact_method = 'zero frequencies'
+    artifact_method = 'gaussian noise'
 
     if not pre_process_params['artifact_pre']:
         artifact_method = 'none'

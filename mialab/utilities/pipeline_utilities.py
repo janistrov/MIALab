@@ -98,7 +98,7 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     if artifact_method == 'gaussian noise':
         for i in range(2):
-            std_noise = 1500  # standard deviation of noise with mean 1.0
+            std_noise = np.mean(img[i])/3  # standard deviation of noise with mean 1.0
             img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
             img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
 
@@ -719,7 +719,7 @@ def init_evaluator(directory: str, result_file_name: str = 'results.csv') -> eva
     evaluator.add_label(3, 'Hippocampus')
     evaluator.add_label(4, 'Amygdala')
     evaluator.add_label(5, 'Thalamus')
-    evaluator.metrics = [metric.DiceCoefficient(), metric.HausdorffDistance()]
+    evaluator.metrics = [metric.DiceCoefficient(), metric.HausdorffDistance(percentile=95)]
     # warnings.warn('Initialized evaluation with the Dice coefficient. Do you know other suitable metrics?')
     # you should add more metrics than just the Hausdorff distance!
     return evaluator
