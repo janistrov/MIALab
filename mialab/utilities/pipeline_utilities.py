@@ -96,15 +96,15 @@ def add_artifact(images: structure.BrainImage, artifact_method):
 
     if artifact_method == 'gaussian noise':
         for i in range(2):
-            std_noise = 1500  # standard deviation of noise with mean 1.0
+            std_noise = 2000  # standard deviation of noise with mean 1.0 # 2000
             img_artifact.append(img[i] + np.random.normal(1.0, std_noise, img[i].shape))
             img_artifact[i] = np.clip(img_artifact[i], 0, np.max(img[i]))
 
     elif artifact_method == 'zero frequencies':
         for i in range(2):
             # parameters
-            nbr_freq = 4  # number of frequency bands to zero
-            band_length = 4  # length of frequency bands to zero
+            nbr_freq = 8  # number of frequency bands to zero # 4
+            band_length = 6  # length of frequency bands to zero # 4
 
             # Fourier transform
             img_fft = np.fft.fftn(img[i])
