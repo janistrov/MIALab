@@ -65,24 +65,25 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
                           'normalization_pre': True,
-                          'artifact_pre': False,
+                          'artifact_pre': True,
                           'registration_pre': True,
                           'coordinates_feature': True,
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
 
+    putil.init_global_variable()
+
     # STUDENT: params
     plot_slice = False
     plot_hist = False
-
-    putil.init_global_variable()
+    putil.evaluate_BraTS = False  # only part of pipeline runnable if 'True'
 
     # STUDENT: choose normalization procedure
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'hm'
+    norm_method = 'z'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -157,8 +158,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=40,  # 20  10   5
-                                                max_depth=50)  # 25  12   7
+                                                n_estimators=20,  # 10
+                                                max_depth=25)  # 12
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)
