@@ -12,8 +12,8 @@ def format_data(data, label: str, metric: str):
 
 
 def main(csv_files: str, plot_dir: str):
-    metric = 'DICE'  # HDRFDST, the metrics we want to plot the results for
-    labels = ('WhiteMatter', 'Amygdala', 'GreyMatter', 'Hippocampus', 'Thalamus')  # the brain structures/tissues you are interested in
+    metric = 'DICE'  # 'DICE' or 'HDRFDST'
+    labels = ('WhiteMatter', 'GreyMatter', 'Amygdala', 'Hippocampus', 'Thalamus')
 
     # load the CSVs. We usually want to compare different methods (e.g. a set of different features), therefore,
     # we load two CSV (for simplicity, it is the same here)
@@ -23,11 +23,11 @@ def main(csv_files: str, plot_dir: str):
     df_method4 = pd.read_csv(csv_files[3], sep=';')
     df_method5 = pd.read_csv(csv_files[4], sep=';')
     dfs = [df_method1, df_method2, df_method3, df_method4, df_method5]
-    # if post-processing is not implemented:
+    # since post-processing is not implemented, delete PP-results:
     for i in range(int(len(dfs))):
         dfs[i] = dfs[i][0:int(len(dfs[i])/2)]
 
-    # some parameters to improve the plot's readability
+    # normalization methods
     methods = ('None', 'Z-Score', 'White Stripe', 'Hist. Match.', 'FCM')
 
     all_list = []  # dim 0: labels, dim 1: methods
@@ -52,6 +52,8 @@ def main(csv_files: str, plot_dir: str):
     ax = sns.boxplot(x="Location", y="value", hue="Methods", data=mdf)
     if metric is 'DICE':
         ax.set_ylim([0, 1])
+    else:
+        ax.set_ylim([0, 20])  # set lim manually
     plt.grid(color='gray', linestyle='dashed')
     ax.set_axisbelow(True)
     if metric is 'DICE':
@@ -59,7 +61,7 @@ def main(csv_files: str, plot_dir: str):
     else:
         plt.ylabel('Hausdorff distance (mm)')
     plt.xlabel(' ')
-    plt.savefig('./mia-result/boxplots_DICE_veryhighCap.png')
+    plt.savefig('./mia-result/boxplots_DICE_highCap.png')  # set name manually
     plt.close()
 
 

@@ -31,13 +31,15 @@ def init_global_variable():
     # One entry per patient, first row: T1w, second row: T2w, one column per ground truth region
     global feature_mean_intensities
     global feature_std_intensities
+    # bool for evaluating tumor dataset
     global evaluate_BraTS
+
     feature_mean_intensities = []
     feature_std_intensities = []
     evaluate_BraTS = False
 
 
-# STUDENT: evaluate features
+# STUDENT: evaluate features: plot and save intensity histograms
 def feature_evaluator(features, ground_truth, id):
     """Adds artifacts to images.
 
@@ -67,14 +69,12 @@ def feature_evaluator(features, ground_truth, id):
     plt.xlabel('Intensity')
     plt.ylabel('PDF')
     plt.legend()
-    plt.title('Density of intensity per region')
     plt.savefig('./mia-result/plots/features/intensity_density_T1w_' + id + '.png')
     plt.close(1)
     plt.figure(2)
     plt.xlabel('Intensity')
     plt.ylabel('PDF')
     plt.legend()
-    plt.title('Density of intensity per region')
     plt.savefig('./mia-result/plots/features/intensity_density_T2w_' + id + '.png')
     plt.close(2)
     # save values to global list
@@ -167,7 +167,7 @@ def add_artifact(images: structure.BrainImage, artifact_method):
     images.images[structure.BrainImageTypes.T2w] = T2w
 
 
-# STUDENT: Plot smooth histogram for inspection2
+# STUDENT: Plot smooth histogram for inspection
 def get_masked_intensities(image: sitk.Image, mask: sitk.Image):
     """Plots a slice of an image.
 
@@ -192,11 +192,12 @@ def save_slice(img: np.array, title: str, path: str):
        path (str): Path for saving
     """
     plt.figure()
-    plt.title(title)
+    # plt.title(title)  # only used in rare cases
     plt.imshow(img, cmap='gray')
     plt.axis('off')
     plt.savefig(path)
     plt.close()
+
 
 # STUDENT: Plot a slice for visual inspection
 def plot_slice(image: sitk.Image):
@@ -327,7 +328,13 @@ def BraTS_eval(imgs: list, norm_method, standard_scales=None, percs=None):
 
     Args:
         imgs (list): The images in a structure
+        norm_method (str): Normalization method
+        standard_scales (list): Standard Scales of standard histogram
+        percs (list): Percentiles of standard histogram
     """
+    tumor_plot = False   # if True: multiple plots with tumor histogram
+                         # if False: one plots with all full image histograms
+
     # Normalization step
     if standard_scales is None:
         for img in imgs:
@@ -358,44 +365,64 @@ def BraTS_eval(imgs: list, norm_method, standard_scales=None, percs=None):
 
     # Plot histogram for evaluation
     labels = ['Whole Brain', 'Tumor']
+
     for img in imgs:
         img_t1 = sitk.GetArrayFromImage(img[structure.BrainImageTypes.T1w])
         img_t2 = sitk.GetArrayFromImage(img[structure.BrainImageTypes.T2w])
         img_gt = sitk.GetArrayFromImage(img[structure.BrainImageTypes.GroundTruth])
-        img_gt[img_gt == 3] = 0  # only look at labels 1 an 4 (inner part of tumor)
+        # only look at labels 1 an 4 (necrosis and expanding tumor)
+        img_gt[img_gt == 3] = 0
         img_gt[img_gt == 4] = 1
 
-        plt.figure()
-        ax1 = plt.subplot(111)
-        ax1.tick_params(axis='y', colors='blue')
-        sns.kdeplot(np.ravel(img_t1), Label=labels[0], color='blue')
+        if tumor_plot is True:
+            plt.figure()
+            ax1 = plt.subplot(111)
+            ax1.tick_params(axis='y', colors='blue')
+            sns.kdeplot(np.ravel(img_t1), Label=labels[0], color='blue')
+            plt.xlabel('Intensity')
+            plt.ylabel('PDF')
+            plt.legend(loc='upper left')
+            ax2 = plt.twinx()
+            ax2.tick_params(axis='y', colors='red')
+            sns.kdeplot(np.ravel(img_t1[img_gt == 1]), Label=labels[1], ax=ax2, color='red')
+            plt.ylabel('PDF')
+            plt.legend(loc='upper right')
+            plt.savefig('./mia-result/plots/features/tumor_T1w_' + img['id_'] + '.png')
+            plt.close()
+
+            plt.figure()
+            ax1 = plt.subplot(111)
+            ax1.tick_params(axis='y', colors='blue')
+            sns.kdeplot(np.ravel(img_t2), Label=labels[0], color='blue')
+            plt.xlabel('Intensity')
+            plt.ylabel('PDF')
+            plt.legend(loc='upper left')
+            ax2 = plt.twinx()
+            ax2.tick_params(axis='y', colors='red')
+            sns.kdeplot(np.ravel(img_t2[img_gt == 1]), Label=labels[1], ax=ax2, color='red')
+            plt.ylabel('PDF')
+            plt.legend(loc='upper right')
+            plt.savefig('./mia-result/plots/features/tumor_T2w_' + img['id_'] + '.png')
+            plt.close()
+
+        else:
+            plt.figure(1)
+            sns.kdeplot(np.ravel(img_t1))
+            plt.figure(2)
+            sns.kdeplot(np.ravel(img_t2))
+
+    if tumor_plot is False:
+        plt.figure(1)
         plt.xlabel('Intensity')
         plt.ylabel('PDF')
-        plt.legend(loc='upper left')
-        ax2 = plt.twinx()
-        ax2.tick_params(axis='y', colors='red')
-        sns.kdeplot(np.ravel(img_t1[img_gt == 1]), Label=labels[1], ax=ax2, color='red')
-        plt.ylabel('PDF')
-        plt.legend(loc='upper right')
-        plt.savefig('./mia-result/plots/features/tumor_T1w_' + img['id_'] + '.png')
+        plt.savefig('./mia-result/plots/features/tumor_fcm_T1w.png')
         plt.close()
 
-        plt.figure()
-        ax1 = plt.subplot(111)
-        ax1.tick_params(axis='y', colors='blue')
-        sns.kdeplot(np.ravel(img_t2), Label=labels[0], color='blue')
+        plt.figure(2)
         plt.xlabel('Intensity')
         plt.ylabel('PDF')
-        plt.legend(loc='upper left')
-        ax2 = plt.twinx()
-        ax2.tick_params(axis='y', colors='red')
-        sns.kdeplot(np.ravel(img_t2[img_gt == 1]), Label=labels[1], ax=ax2, color='red')
-        plt.ylabel('PDF')
-        plt.legend(loc='upper right')
-        plt.savefig('./mia-result/plots/features/tumor_T2w_' + img['id_'] + '.png')
+        plt.savefig('./mia-result/plots/features/tumor_fcm_T2w.png')
         plt.close()
-
-
 
 
 def load_atlas_images(directory: str):
@@ -759,7 +786,7 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
             BraTS_eval(brats, norm_method=norm_method, standard_scales=standard_scales, percs=percs)
         else:
             BraTS_eval(brats, norm_method=norm_method)
-        break_point = 1
+        break_point = 1  # set breakpoint here
 
     if multi_process:
         images = mproc.MultiProcessor.run(pre_process, params_list, pre_process_params, mproc.PreProcessingPickleHelper)

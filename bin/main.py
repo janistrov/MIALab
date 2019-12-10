@@ -71,19 +71,20 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
 
+    # STUDENT: initialize evaluate_BraTS, feature_mean_intensities and feature_std_intensities as global variables
     putil.init_global_variable()
 
-    # STUDENT: params
+    # STUDENT: parameters for execution
     plot_slice = False
     plot_hist = False
-    putil.evaluate_BraTS = False  # only part of pipeline runnable if 'True'
+    putil.evaluate_BraTS = False  # only part of pipeline runnable if 'True': run in debug mode
 
-    # STUDENT: choose normalization procedure
+    # STUDENT: choose normalization method
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'z'
+    norm_method = 'fcm'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -121,18 +122,18 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
             plt.figure(i+1)
             plt.xlabel('Intensity')
             plt.ylabel('PDF')
-            plt.title('Intensity density with ' + norm_method + ' normalization method')
+            # plt.title('Intensity density with ' + norm_method + ' normalization method')
             plt.savefig('./mia-result/plots/Result_Hist_norm-' + norm_method + '_T' + str(i+1) + 'w.png')
             plt.close()
 
-    # STUDENT: save preprocessed images for visual inspection
+    # STUDENT: save preprocessed sitk images for visual inspection
     for i, img in enumerate(images):
         save_to_t1w = os.path.join('./mia-result/norm images/', norm_method + '-norm_' + images[i].id_ + '_T1w.nii.gz')
         save_to_t2w = os.path.join('./mia-result/norm images/', norm_method + '-norm_' + images[i].id_ + '_T2w.nii.gz')
         sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t1w)
         sitk.WriteImage(images[i].images[structure.BrainImageTypes.T1w], save_to_t2w)
 
-    # STUDENT: print intensity means of feature images
+    # STUDENT: print intensity means of feature images for pre evaluation
     mean = np.sum(putil.feature_mean_intensities, axis=0)/len(putil.feature_mean_intensities)
     std = np.sum(putil.feature_std_intensities, axis=0) / len(putil.feature_std_intensities)
     labels = ['White matter:', 'Grey matter:', 'Hippocampus:', 'Amygdala:   ', 'Thalamus:   ']
@@ -148,7 +149,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
         for i in range(5):
             print(labels[i] + '\t' + str(std[w, i]))
     print('\n')
-    putil.init_global_variable()
+    putil.init_global_variable()  # reset mean and std lists for test procedure
 
     # generate feature matrix and label vector
     data_train = np.concatenate([img.feature_matrix[0] for img in images])
@@ -158,8 +159,8 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # we modified the number of decision trees in the forest to be 20 and the maximum tree depth to be 25
     # note, however, that these settings might not be the optimal ones...
     forest = sk_ensemble.RandomForestClassifier(max_features=images[0].feature_matrix[0].shape[1],
-                                                n_estimators=20,  # 10
-                                                max_depth=25)  # 12
+                                                n_estimators=20,  # 8 for low capacity, 20 for high capacity
+                                                max_depth=25)  # 10 for low capacity, 25 for high capacity
 
     start_time = timeit.default_timer()
     forest.fit(data_train, labels_train)

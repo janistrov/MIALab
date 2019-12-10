@@ -44,7 +44,6 @@ class ImageNormalization(pymia_fltr.IFilter):
         img_arr = sitk.GetArrayFromImage(image)
 
         # STUDENT: implementation of normalization
-
         if self.norm_method == 'z':
             print('Normalization method: Z-Score')
             mask = sitk.GetArrayFromImage(self.mask)
@@ -68,9 +67,9 @@ class ImageNormalization(pymia_fltr.IFilter):
 
         elif self.norm_method == 'hm':
             print('Normalization method: Histogram Matching')
-            # self.save_hist(img_arr)
+            # self.save_hist(img_arr)  # optional for inspection
             img_arr = self.do_hist_norm(img_arr)
-            # self.save_hist(img_arr, normalized=True)
+            # self.save_hist(img_arr, normalized=True)  # optional for inspection
 
         elif self.norm_method == 'fcm':
             print('Normalization method: FCM White Matter Aligning')
