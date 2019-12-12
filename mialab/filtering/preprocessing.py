@@ -55,7 +55,7 @@ class ImageNormalization(pymia_fltr.IFilter):
             print('Normalization method: White Stripe')
             indices = self.white_stripe(img_arr)
             plt.figure()
-            plt.title('White Stripe Mask of of ID ' + self.id_)
+            # plt.title('White Stripe Mask of of ID ' + self.id_)
             plt.imshow(indices[100, :, :])
             plt.axis('off')
             plt.savefig('./mia-result/plots/WS_Mask_' + self.T_ + '_' + self.id_ + '.png')
@@ -88,7 +88,7 @@ class ImageNormalization(pymia_fltr.IFilter):
             for i in range(3):
                 clusters[fcm_clusters[..., i] > threshold] = i + 1
             plt.figure()
-            plt.title('White Matter Mask of of ID ' + self.id_)
+            # plt.title('White Matter Mask of of ID ' + self.id_)
             plt.imshow(clusters[100, :, :])
             plt.axis('off')
             plt.savefig('./mia-result/plots/WM_Mask_' + self.T_ + '_' + self.id_ + '.png')
@@ -136,7 +136,7 @@ class ImageNormalization(pymia_fltr.IFilter):
         if len(ws_ind) == 0:
             print('WhiteStripe failed to find any valid indices!')
         plt.figure()
-        plt.title('White Stripe of of ID ' + self.id_)
+        # plt.title('White Stripe of of ID ' + self.id_)
         plt.xlabel('Intensity')
         plt.ylabel('PDF')
         plt.plot(grid, pdf, color='b')

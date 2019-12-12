@@ -53,7 +53,7 @@ def main(csv_files: str, plot_dir: str):
     if metric is 'DICE':
         ax.set_ylim([0, 1])
     else:
-        ax.set_ylim([0, 20])  # set lim manually
+        ax.set_ylim([0, 30])  # set lim manually
     plt.grid(color='gray', linestyle='dashed')
     ax.set_axisbelow(True)
     if metric is 'DICE':
@@ -61,7 +61,7 @@ def main(csv_files: str, plot_dir: str):
     else:
         plt.ylabel('Hausdorff distance (mm)')
     plt.xlabel(' ')
-    plt.savefig('./mia-result/boxplots_DICE_highCap.png')  # set name manually
+    plt.savefig('./mia-result/boxplots_DICE_zf.png')  # set name manually
     plt.close()
 
 

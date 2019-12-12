@@ -84,7 +84,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'fcm'
+    norm_method = 'hm'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -92,7 +92,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
     # STUDENT: choose artifact procedure
     # 'gaussian noise':     Gaussian Noise
     # 'zero frequencies':   Randomly selected frequencies are zero-filled
-    artifact_method = 'gaussian noise'
+    artifact_method = 'zero frequencies'
 
     if not pre_process_params['artifact_pre']:
         artifact_method = 'none'

@@ -105,8 +105,8 @@ def add_artifact(images: structure.BrainImage, artifact_method):
     elif artifact_method == 'zero frequencies':
         for i in range(2):
             # parameters
-            nbr_freq = 4  # number of frequency bands to zero
-            band_length = 4  # length of frequency bands to zero
+            nbr_freq = 8  # number of frequency bands to zero
+            band_length = 6  # length of frequency bands to zero
 
             # Fourier transform
             img_fft = np.fft.fftn(img[i])
@@ -795,7 +795,8 @@ def pre_process_batch(data_batch: t.Dict[structure.BrainImageTypes, structure.Br
             images_unprocessed = [hm_load_images(id_, path) for id_, path in params_list]
             standard_scales, percs = hist_to_match(images_unprocessed)
             images_unprocessed.clear()
-            images = [pre_process(id_, path, norm_method=norm_method, standard_scales=standard_scales, percs=percs,
+            images = [pre_process(id_, path, norm_method=norm_method, artifact_method=artifact_method,
+                                  standard_scales=standard_scales, percs=percs,
                                   **pre_process_params) for id_, path in params_list]
         else:
             images = [pre_process(id_, path, norm_method=norm_method, artifact_method=artifact_method,
