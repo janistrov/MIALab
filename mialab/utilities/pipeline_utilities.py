@@ -255,7 +255,7 @@ def hist_to_match(imgs: list, i_min=1, i_max=99, i_s_min=1,
         T1w_f = interp1d([T1w_min_p, T1w_max_p], [i_s_min, i_s_max])
         T2w_f = interp1d([T2w_min_p, T2w_max_p], [i_s_min, i_s_max])
         T1w_landmarks, T2w_landmarks = np.array(T1w_f(T1w_landmarks)), np.array(T2w_f(T2w_landmarks))
-        # get standart scale
+        # get standard scale
         T1w_standard_scale += T1w_landmarks
         T2w_standard_scale += T2w_landmarks
 
@@ -332,21 +332,21 @@ def BraTS_eval(imgs: list, norm_method, standard_scales=None, percs=None):
         standard_scales (list): Standard Scales of standard histogram
         percs (list): Percentiles of standard histogram
     """
-    tumor_plot = False   # if True: multiple plots with tumor histogram
+    tumor_plot = True   # if True: multiple plots with tumor histogram
                          # if False: one plots with all full image histograms
 
     # Normalization step
     if standard_scales is None:
         for img in imgs:
             pipeline_t1 = fltr.FilterPipeline()
-            pipeline_t1.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T1w', norm_method,
-                                                                mask=img[structure.BrainImageTypes.BrainMask]))
+            #pipeline_t1.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T1w', norm_method,
+            #                                                    mask=img[structure.BrainImageTypes.BrainMask]))
             img[structure.BrainImageTypes.T1w] = pipeline_t1.execute(img[structure.BrainImageTypes.T1w])
 
         for img in imgs:
             pipeline_t2 = fltr.FilterPipeline()
-            pipeline_t2.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T2w', norm_method,
-                                                                mask=img[structure.BrainImageTypes.BrainMask]))
+            #pipeline_t2.add_filter(fltr_prep.ImageNormalization(img['id_'], 'T2w', norm_method,
+            #                                                    mask=img[structure.BrainImageTypes.BrainMask]))
             img[structure.BrainImageTypes.T2w] = pipeline_t2.execute(img[structure.BrainImageTypes.T2w])
     else:
         for img in imgs:
@@ -611,6 +611,12 @@ def pre_process(id_: str, paths: dict, norm_method: str = 'no', artifact_method:
     # execute pipeline on the brain mask image
     img.images[structure.BrainImageTypes.BrainMask] = pipeline_brain_mask.execute(
         img.images[structure.BrainImageTypes.BrainMask])
+
+    # sliced = sitk.GetArrayFromImage(img.images[structure.BrainImageTypes.T1w])[80, :, :]
+    # slice_mask = sitk.GetArrayFromImage(img.images[structure.BrainImageTypes.BrainMask])[80, :, :]
+    # sliced[slice_mask == 0] = 0
+    # save_slice(sliced, 'none',
+    #                './mia-result/plots/healthy_example_' + id_ + '.png')
 
     # construct pipeline for T1w image pre-processing
     pipeline_t1 = fltr.FilterPipeline()

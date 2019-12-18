@@ -64,9 +64,9 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
                                          futil.BrainImageFilePathGenerator(),
                                          futil.DataDirectoryFilter())
     pre_process_params = {'skullstrip_pre': True,
-                          'normalization_pre': True,
-                          'artifact_pre': True,
-                          'registration_pre': True,
+                          'normalization_pre': False,
+                          'artifact_pre': False,
+                          'registration_pre': False,
                           'coordinates_feature': True,
                           'intensity_feature': True,
                           'gradient_intensity_feature': True}
@@ -76,15 +76,15 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     # STUDENT: parameters for execution
     plot_slice = False
-    plot_hist = False
-    putil.evaluate_BraTS = False  # only part of pipeline runnable if 'True': run in debug mode
+    plot_hist = True
+    putil.evaluate_BraTS = True  # only part of pipeline runnable if 'True': run in debug mode
 
     # STUDENT: choose normalization method
     #  'z':     Z-Score
     #  'ws':    White Stripe
     #  'hm':    Histogram Matching
     #  'fcm':   FCM White Matter Alignment
-    norm_method = 'hm'
+    norm_method = 'z'
 
     if not pre_process_params['normalization_pre']:
         norm_method = 'no'
@@ -107,7 +107,7 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
 
     if plot_hist is True:
         intensities_T1w, intensities_T2w = [], []
-        nr_samples = 3
+        nr_samples = 1
         for i in range(nr_samples):
             intensities_T1w.append(putil.get_masked_intensities(images[i].images[structure.BrainImageTypes.T1w],
                                    images[i].images[structure.BrainImageTypes.BrainMask]))
@@ -123,8 +123,10 @@ def main(result_dir: str, data_atlas_dir: str, data_train_dir: str, data_test_di
             plt.xlabel('Intensity')
             plt.ylabel('PDF')
             # plt.title('Intensity density with ' + norm_method + ' normalization method')
+            plt.ylabel('PDF')
             plt.savefig('./mia-result/plots/Result_Hist_norm-' + norm_method + '_T' + str(i+1) + 'w.png')
             plt.close()
+            print('plot finished\n\n\n')
 
     # STUDENT: save preprocessed sitk images for visual inspection
     for i, img in enumerate(images):
